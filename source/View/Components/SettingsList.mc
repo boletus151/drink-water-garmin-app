@@ -3,20 +3,20 @@ import Toybox.Graphics;
 import Toybox.Lang;
 import Toybox.WatchUi;
 
-class BaseSettingsMenu extends WatchUi.CustomMenu {
+class SettingsList {
     var _count as Number = 0;
 
-    function initialize(daysOnly as Boolean) {
-        var itemHeight = Graphics.getFontHeight(Graphics.FONT_XTINY) * 2 +
-            Theme.STACK_GAP + Theme.MENU_PADDING * 2;
-        CustomMenu.initialize(itemHeight, Theme.BACKGROUND, {
-            :focusItemHeight => itemHeight + Theme.MENU_FOCUS_PADDING * 2,
-            :title => new SettingsTitle(daysOnly)
-        });
+    function initialize() {
     }
 
-    function addSetting(key as String, title as ResourceId) as Void {
-        addItem(new SettingsItem(text(title), valueText(key), key));
+    static function itemHeight() as Number {
+        return Graphics.getFontHeight(Graphics.FONT_XTINY) * 2 +
+            Theme.STACK_GAP + Theme.MENU_PADDING * 2;
+    }
+
+    function addSetting(menu as WatchUi.CustomMenu, key as String, title as ResourceId) as Void {
+        menu.addItem(new SettingsItem(text(title), valueText(key), key));
+        _count += 1;
     }
 
     function valueText(key as String) as String {
@@ -33,9 +33,9 @@ class BaseSettingsMenu extends WatchUi.CustomMenu {
         return value.toString();
     }
 
-    function refresh() as Void {
+    function refresh(menu as WatchUi.CustomMenu) as Void {
         for (var i = 0; i < _count; i += 1) {
-            var item = getItem(i);
+            var item = menu.getItem(i);
             if (item != null) {
                 var key = item.getId();
                 if (key instanceof String && !key.equals("days")) {
@@ -43,9 +43,5 @@ class BaseSettingsMenu extends WatchUi.CustomMenu {
                 }
             }
         }
-    }
-
-    function onShow() as Void {
-        refresh();
     }
 }

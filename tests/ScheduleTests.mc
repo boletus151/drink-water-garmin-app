@@ -38,6 +38,7 @@ function xmlLayoutsRenderScreensAndKeepNextOutOfTheReminder(logger as Test.Logge
     reminder.onLayout(dc);
     reminder.onUpdate(dc);
     Test.assert(reminder.findDrawableById("next") == null);
+    Test.assert(reminder.findDrawableById("schedule") == null);
     var goal = new GoalView(new GoalController(text(Rez.Strings.Goal), 2000));
     goal.onLayout(dc);
     goal.onUpdate(dc);
@@ -62,6 +63,24 @@ function xmlLayoutsRenderScreensAndKeepNextOutOfTheReminder(logger as Test.Logge
             time.confirm();
         }
     }
+    return true;
+}
+
+(:test)
+function sharedWaterFrameUpdatesWithoutScreenSpecificDrawables(logger as Test.Logger) as Boolean {
+    var buffer = LayoutDrawCounter.buffer(240);
+    var view = new LayoutView();
+    WaterFrame.setLayout(view, [], buffer.getDc());
+    var config = new WaterConfig();
+    Test.assert(WaterFrame.update(view, config, false));
+    config.error = text(Rez.Strings.UnsupportedVersion);
+    Test.assert(!WaterFrame.update(view, config, false));
+    view.drawLayout(buffer.getDc());
+    Test.assert(!WaterFrame.update(view, config, true));
+    view.drawLayout(buffer.getDc());
+    config.error = null;
+    Test.assert(WaterFrame.update(view, config, false));
+    view.drawLayout(buffer.getDc());
     return true;
 }
 

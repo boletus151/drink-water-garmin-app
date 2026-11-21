@@ -67,9 +67,9 @@ La regla de inicio anterior al fin no cambia: si al editar los extremos el horar
 
 La pantalla principal, la del recordatorio, los menus de ajustes y dias, y los editores comparten un fondo negro con acentos azul agua. El texto principal es blanco, las indicaciones secundarias son gris claro y los errores aparecen en ambar, siempre acompanados de texto. La fila del menu seleccionada tiene fondo azul oscuro; la cifra activa, fondo azul agua y texto negro. Los botones y el guardado no cambian.
 
-La pantalla principal y el recordatorio son vistas distintas. La principal muestra el objetivo diario y el proximo aviso. El recordatorio muestra "Recuerda beber agua" y el horario, pero no calcula ni muestra la proxima alerta. Ambas comparten el encabezado, los errores y los botones. Guardar un ajuste vuelve al estado de pantalla principal; recibir un aviso nuevo selecciona la vista del recordatorio sin interrumpir un editor abierto.
+La pantalla principal y el recordatorio son vistas distintas. La principal muestra el objetivo diario, el horario y el proximo aviso. El recordatorio muestra "Recuerda beber agua", sin horario ni proxima alerta. Ambas comparten el encabezado, los errores y los botones. Guardar un ajuste vuelve al estado de pantalla principal; recibir un aviso nuevo selecciona la vista del recordatorio sin interrumpir un editor abierto.
 
-`WaterView` y `ReminderView` heredan de `BaseWaterView`, no una de la otra. La base actualiza el marco compartido mediante `updateFrame`; cada vista carga su layout XML en `onLayout` mediante `setWaterLayout`, que incorpora el componente de error compartido, actualiza los datos en `onUpdate` y oculta su contenido si hay un error.
+Ninguna pantalla hereda de otra pantalla. `WaterView` y `ReminderView` heredan de [RootView](source/View/Common/RootView.mc), que solo coordina su ciclo de visibilidad y delegado de entrada. Ambas componen [WaterFrame](source/View/Components/WaterFrame.mc), que carga el encabezado, los errores y las indicaciones compartidas. Cada pantalla actualiza y oculta exclusivamente sus propios elementos; el componente no presupone que existan `content`, `schedule` o `next`.
 
 El dialogo inicial "Recuerda beber agua" y los ajustes del movil conservan la apariencia del sistema Garmin: la aplicacion no controla sus colores.
 
@@ -79,7 +79,7 @@ La distribucion, las fuentes y los colores iniciales se definen en [resources/la
 | --- | --- |
 | Principal | [water.xml](resources/layouts/screens/water.xml) |
 | Recordatorio, sin proxima alerta | [reminder.xml](resources/layouts/screens/reminder.xml) |
-| Error de ajustes o programacion en ambas pantallas | [settings-error.xml](resources/layouts/components/settings-error.xml) |
+| Encabezado, errores e indicaciones de ambas pantallas | [water-frame.xml](resources/layouts/components/water-frame.xml) |
 | Objetivo diario | [goal.xml](resources/layouts/screens/goal.xml) |
 | Intervalo | [interval.xml](resources/layouts/screens/interval.xml) |
 | Hora inicial y final | [time.xml](resources/layouts/screens/time.xml) |
@@ -87,7 +87,7 @@ La distribucion, las fuentes y los colores iniciales se definen en [resources/la
 | Encabezado de dias | [days-menu-header.xml](resources/layouts/components/days-menu-header.xml) |
 | Fila de ambos menus | [menu-item.xml](resources/layouts/components/menu-item.xml) |
 
-[screens/](resources/layouts/screens/) contiene layouts de pantallas completas; [components/](resources/layouts/components/) contiene piezas que se dibujan dentro de una pantalla. Los nombres de los componentes describen su funcion: `header` para encabezados e `item` para filas. Los identificadores `SettingsMenuHeaderLayout` y `DaysMenuHeaderLayout` dejan claro que esos recursos no representan menus completos. Esta distincion afecta solo a los XML y sus referencias; las clases `View` y `Menu` conservan sus nombres.
+[screens/](resources/layouts/screens/) contiene la parte propia de cada pantalla; [components/](resources/layouts/components/) contiene piezas reutilizables que se incorporan a ella. Los nombres de los componentes describen su funcion: `frame` para el marco compartido, `header` para encabezados e `item` para filas. Los identificadores `SettingsMenuHeaderLayout` y `DaysMenuHeaderLayout` dejan claro que esos recursos no representan menus completos. El codigo que los presenta se encuentra en [View/Components/](source/View/Components/), no en `resources`.
 
 Los menus conservan el control nativo de Garmin para la lista, el desplazamiento y la seleccion; sus encabezados y filas usan XML. Los layouts se compilan en la app: cambiar un XML o la paleta requiere recompilar, no se cargan ficheros externos en el reloj.
 
@@ -113,7 +113,7 @@ Los margenes y espacios de cada pantalla se ajustan en su XML. El contenido larg
 
 El manifiesto sigue admitiendo solo el Forerunner 645. Las posiciones se adaptan al tamano del contexto, pero los porcentajes no garantizan que cualquier texto o fuente quepa en cualquier reloj. Anadir otro dispositivo requiere incorporar su perfil y validar sus fuentes, pantalla y controles; si hace falta, se pueden definir variantes de recursos por dispositivo.
 
-Conserva los identificadores de los elementos que actualiza el codigo: `content`, `status`, `schedule`, `toggleHint` y `menuHint` en las dos vistas principales; `errorTitle` y `errorDetail` en el componente compartido [settings-error.xml](resources/layouts/components/settings-error.xml); `next` solo en la principal; `title`, `digitN`, `range` y `confirmHint` en los editores por cifras. `setWaterLayout` combina los drawables de la pantalla y del error usando el mismo contexto de dibujo, por lo que los porcentajes y el acceso por identificador se mantienen. [LayoutView.mc](source/View/Common/LayoutView.mc) solo proporciona acceso tipado a los textos y controla que elementos dibujar, porque API 3.1 no admite la visibilidad nativa de los drawables. Ya no contiene un motor de distribucion ni componentes de dibujo propios.
+Conserva los identificadores de los elementos que actualiza el codigo: `content` y `status` en las dos vistas principales; `schedule` y `next` solo en la principal; `title`, `errorTitle`, `errorDetail`, `toggleHint` y `menuHint` en [water-frame.xml](resources/layouts/components/water-frame.xml); `title`, `digitN`, `range` y `confirmHint` en los editores por cifras. `WaterFrame.setLayout` combina los drawables de la pantalla y del marco usando el mismo contexto de dibujo, por lo que los porcentajes y el acceso por identificador se mantienen. [LayoutView.mc](source/View/Common/LayoutView.mc) solo proporciona acceso tipado a los textos y controla que elementos dibujar, porque API 3.1 no admite la visibilidad nativa de los drawables. Ya no contiene un motor de distribucion ni componentes de dibujo propios.
 
 ### Organizacion estilo MVC
 
@@ -124,12 +124,17 @@ El codigo de [source/](source/) se organiza por responsabilidades:
 | [App/](source/App/) | Punto de entrada, ciclo de vida y coordinacion del guardado. |
 | [Model/](source/Model/) | Datos de configuracion, lectura de propiedades y validacion. |
 | [Service/](source/Service/) | Calculo del calendario, registro de eventos y ejecucion en segundo plano. |
-| [View/](source/View/) | Pantallas, menus, editores y sus vistas base. |
-| [View/Common/](source/View/Common/) | Acceso a layouts XML y componentes visuales reutilizables. |
-| [Controller/](source/Controller/) | Delegados de entrada, borradores de edicion y navegacion. |
+| [View/Screens/](source/View/Screens/) | Vistas de pantallas con layout XML propio, que componen elementos reutilizables. |
+| [View/Screens/GarminScreens/](source/View/Screens/GarminScreens/) | Pantallas de menu nativas de Garmin, sin layout XML completo propio. |
+| [View/Components/](source/View/Components/) | Marco compartido, presentacion de editores, encabezados, filas y refresco de listas. |
+| [View/Common/](source/View/Common/) | Infraestructura de layouts y ciclo de visibilidad, sin contenido de una pantalla concreta. |
+| [Controller/Screens/](source/Controller/Screens/) | Delegados de entrada de las pantallas con layout XML propio. |
+| [Controller/Screens/GarminScreens/](source/Controller/Screens/GarminScreens/) | Delegados de entrada y navegacion de los menus nativos de Garmin. |
+| [Controller/Components/](source/Controller/Components/) | Borradores, validacion y botones reutilizables de los editores numericos. |
+| [Controller/Common/](source/Controller/Common/) | Comportamiento compartido de los botones de las vistas principales. |
 | [Style/](source/Style/) | Paleta y constantes de apariencia. |
 
-Los layouts se organizan en [resources/layouts/screens/](resources/layouts/screens/) y [resources/layouts/components/](resources/layouts/components/); las pruebas permanecen en [tests/](tests/). Las carpetas no introducen nuevos modulos ni cambian los nombres de las clases. Los recursos XML se referencian por su identificador, no por su ruta. `monkey.jungle` conserva `source` como ruta raiz de codigo y `resources` como raiz de recursos; el compilador incluye sus subcarpetas.
+Los layouts se organizan en [resources/layouts/screens/](resources/layouts/screens/) y [resources/layouts/components/](resources/layouts/components/); las pruebas permanecen en [tests/](tests/). `resources` contiene solo recursos, no controladores Monkey C. Un componente puramente visual no necesita un controlador propio: el marco y los elementos de menu reutilizan la presentacion, mientras que los editores tambien comparten su logica de entrada. Las carpetas no introducen nuevos modulos. Los recursos XML se referencian por su identificador, no por su ruta. `monkey.jungle` conserva `source` como ruta raiz de codigo y `resources` como raiz de recursos; el compilador incluye sus subcarpetas.
 
 - **Modelo compartido:** `Config` y `Schedule` mantienen la configuracion y el calendario; `DrinkWaterApp.save` persiste los cambios y recalcula los avisos.
 - **Vista:** carga el XML, lee los datos y actualiza textos, colores y elementos mostrados. No modifica ni guarda el borrador del editor.
@@ -139,15 +144,15 @@ Cada pantalla tiene su vista y controlador en archivos propios:
 
 | Pantalla | Vista | Controlador |
 | --- | --- | --- |
-| Principal | [WaterView.mc](source/View/WaterView.mc) | [WaterController.mc](source/Controller/WaterController.mc) |
-| Recordatorio | [ReminderView.mc](source/View/ReminderView.mc) | [ReminderController.mc](source/Controller/ReminderController.mc) |
-| Ajustes | [SettingsMenu.mc](source/View/SettingsMenu.mc) | [SettingsController.mc](source/Controller/SettingsController.mc) |
-| Dias activos | [DaysMenu.mc](source/View/DaysMenu.mc) | [DaysController.mc](source/Controller/DaysController.mc) |
-| Objetivo diario | [GoalView.mc](source/View/GoalView.mc) | [GoalController.mc](source/Controller/GoalController.mc) |
-| Intervalo | [IntervalView.mc](source/View/IntervalView.mc) | [IntervalController.mc](source/Controller/IntervalController.mc) |
-| Hora inicial y final | [TimeView.mc](source/View/TimeView.mc) | [TimeController.mc](source/Controller/TimeController.mc) |
+| Principal | [WaterView.mc](source/View/Screens/WaterView.mc) | [WaterController.mc](source/Controller/Screens/WaterController.mc) |
+| Recordatorio | [ReminderView.mc](source/View/Screens/ReminderView.mc) | [ReminderController.mc](source/Controller/Screens/ReminderController.mc) |
+| Ajustes | [SettingsMenu.mc](source/View/Screens/GarminScreens/SettingsMenu.mc) | [SettingsController.mc](source/Controller/Screens/GarminScreens/SettingsController.mc) |
+| Dias activos | [DaysMenu.mc](source/View/Screens/GarminScreens/DaysMenu.mc) | [DaysController.mc](source/Controller/Screens/GarminScreens/DaysController.mc) |
+| Objetivo diario | [GoalView.mc](source/View/Screens/GoalView.mc) | [GoalController.mc](source/Controller/Screens/GoalController.mc) |
+| Intervalo | [IntervalView.mc](source/View/Screens/IntervalView.mc) | [IntervalController.mc](source/Controller/Screens/IntervalController.mc) |
+| Hora inicial y final | [TimeView.mc](source/View/Screens/TimeView.mc) | [TimeController.mc](source/Controller/Screens/TimeController.mc) |
 
-Las dos horas reutilizan la misma logica, vista y layout [time.xml](resources/layouts/screens/time.xml). El controlador aporta el titulo y el valor; `DigitView.onUpdate` actualiza esos datos sin duplicar la estructura visual. Los controladores base de numeros y cifras comparten el comportamiento de edicion; las vistas base comparten solo el dibujo. `BaseWaterController` reutiliza los botones de principal y recordatorio. `BaseSettingsMenu` y `MenuVisuals` reutilizan el refresco y los elementos visuales de los menus.
+Las dos horas reutilizan la misma logica, vista y layout [time.xml](resources/layouts/screens/time.xml). El controlador aporta el titulo y el valor; `TimeView` e `IntervalView` componen [DigitEditor](source/View/Components/DigitEditor.mc), y `GoalView` compone [NumberEditor](source/View/Components/NumberEditor.mc). Los componentes actualizan los textos sin convertirse en pantallas ni gestionar la navegacion. [NumberController](source/Controller/Components/NumberController.mc) y [DigitController](source/Controller/Components/DigitController.mc) comparten el comportamiento de edicion; [RootController](source/Controller/Common/RootController.mc) reutiliza los botones de principal y recordatorio. Los menus heredan directamente de `WatchUi.CustomMenu` y componen [SettingsList](source/View/Components/SettingsList.mc), [SettingsTitle](source/View/Components/SettingsTitle.mc) y [SettingsItem](source/View/Components/SettingsItem.mc).
 
 Al abrir un editor, la vista recibe el mismo controlador que Garmin utiliza como delegado:
 
@@ -206,7 +211,7 @@ La carpeta [bin/](bin/) contiene archivos generados, no fuentes: ejecutables, me
 4. La extension oficial compila el proyecto y lo ejecuta en el simulador del 645. La configuracion [launch.json](.vscode/launch.json) detiene la ejecucion al iniciar.
 5. Coloca puntos de interrupcion en los archivos Monkey C, continua con F5 y usa los botones del reloj simulado para reproducir el comportamiento.
 
-Para los editores por cifras, coloca puntos de interrupcion en `DigitController.change` o `DigitController.confirm`, en [DigitController.mc](source/Controller/DigitController.mc). `TimeController.save`, en [TimeController.mc](source/Controller/TimeController.mc), guarda la hora completa.
+Para los editores por cifras, coloca puntos de interrupcion en `DigitController.change` o `DigitController.confirm`, en [DigitController.mc](source/Controller/Components/DigitController.mc). `TimeController.save`, en [TimeController.mc](source/Controller/Screens/TimeController.mc), guarda la hora completa.
 
 No ejecutes al mismo tiempo `run-simulator.sh` y una sesion de depuracion sobre el mismo simulador. Las rutas personales y la clave no forman parte de `launch.json`; `.vscode/settings.json` permanece excluido de Git.
 
@@ -226,7 +231,7 @@ Para ejecutar la aplicacion en el simulador abierto:
 ./run-simulator.sh
 ```
 
-El [script](run-simulator.sh) configura Java mediante el Makefile y carga el ejecutable existente; no abre el simulador ni recompila. Deja la terminal abierta mientras pruebas. Si has cambiado el codigo, ejecuta `make build` antes.
+El [script](run-simulator.sh) configura Java mediante el Makefile, compila siempre antes de cargar el ejecutable y detiene la ejecucion si la compilacion falla; no abre el simulador. Deja la terminal abierta mientras pruebas.
 
 Tambien funciona desde otra carpeta usando su ruta, por ejemplo `./drink-water_v1/run-simulator.sh` desde la carpeta Garmin. Puedes pasar las mismas rutas alternativas que al Makefile: `./run-simulator.sh SDK_HOME="/ruta/al/sdk" JAVA_HOME="/ruta/al/jdk/Contents/Home"`.
 
@@ -254,18 +259,19 @@ Esto genera `bin/drink-water.iq`. La publicacion en Connect IQ Store, incluida u
 - [Schedule.mc](source/Service/Schedule.mc): calendario local y registro de eventos.
 - [WaterService.mc](source/Service/WaterService.mc): ejecucion en segundo plano y solicitud de apertura.
 - [DrinkWaterApp.mc](source/App/DrinkWaterApp.mc): ciclo de vida y persistencia del ultimo aviso.
-- [BaseWaterView.mc](source/View/BaseWaterView.mc): marco y ciclo de visibilidad compartidos.
+- [RootView.mc](source/View/Common/RootView.mc): ciclo de visibilidad compartido, sin elementos de pantalla.
+- [WaterFrame.mc](source/View/Components/WaterFrame.mc): composicion del encabezado, errores e indicaciones de las vistas principales.
 - [LayoutView.mc](source/View/Common/LayoutView.mc): acceso tipado a elementos XML y dibujo compatible con API 3.1.
 - [Theme.mc](source/Style/Theme.mc): colores de estado, espaciado y rellenos del menu; el fondo de foco se define en [drawables.xml](resources/drawables.xml).
-- [WaterView.mc](source/View/WaterView.mc): pantalla principal.
-- [WaterController.mc](source/Controller/WaterController.mc) y [ReminderController.mc](source/Controller/ReminderController.mc): controladores de las vistas principales.
-- [ReminderView.mc](source/View/ReminderView.mc): pantalla del recordatorio, sin proxima alerta.
-- [SettingsMenu.mc](source/View/SettingsMenu.mc) y [DaysMenu.mc](source/View/DaysMenu.mc): menus independientes.
-- [SettingsController.mc](source/Controller/SettingsController.mc) y [DaysController.mc](source/Controller/DaysController.mc): seleccion, apertura de editores y cambio de dias.
-- [NumberView.mc](source/View/NumberView.mc) y [DigitView.mc](source/View/DigitView.mc): dibujo compartido de los editores.
-- [NumberController.mc](source/Controller/NumberController.mc) y [DigitController.mc](source/Controller/DigitController.mc): edicion, validacion y botones compartidos.
-- [GoalView.mc](source/View/GoalView.mc), [IntervalView.mc](source/View/IntervalView.mc) y [TimeView.mc](source/View/TimeView.mc): vistas de editores, con sus controladores en [Controller/](source/Controller/).
-- [MenuVisuals.mc](source/View/Common/MenuVisuals.mc): encabezados y filas XML de los menus.
+- [WaterView.mc](source/View/Screens/WaterView.mc): pantalla principal.
+- [WaterController.mc](source/Controller/Screens/WaterController.mc) y [ReminderController.mc](source/Controller/Screens/ReminderController.mc): controladores de las vistas principales.
+- [ReminderView.mc](source/View/Screens/ReminderView.mc): pantalla del recordatorio, sin horario ni proxima alerta.
+- [SettingsMenu.mc](source/View/Screens/GarminScreens/SettingsMenu.mc) y [DaysMenu.mc](source/View/Screens/GarminScreens/DaysMenu.mc): menus nativos independientes.
+- [SettingsController.mc](source/Controller/Screens/GarminScreens/SettingsController.mc) y [DaysController.mc](source/Controller/Screens/GarminScreens/DaysController.mc): seleccion, apertura de editores y cambio de dias.
+- [NumberEditor.mc](source/View/Components/NumberEditor.mc) y [DigitEditor.mc](source/View/Components/DigitEditor.mc): presentacion compartida de los editores.
+- [NumberController.mc](source/Controller/Components/NumberController.mc) y [DigitController.mc](source/Controller/Components/DigitController.mc): edicion, validacion y botones compartidos.
+- [GoalView.mc](source/View/Screens/GoalView.mc), [IntervalView.mc](source/View/Screens/IntervalView.mc) y [TimeView.mc](source/View/Screens/TimeView.mc): vistas de editores, con sus controladores en [Controller/Screens/](source/Controller/Screens/).
+- [SettingsList.mc](source/View/Components/SettingsList.mc), [SettingsTitle.mc](source/View/Components/SettingsTitle.mc) y [SettingsItem.mc](source/View/Components/SettingsItem.mc): listas, encabezados y filas de los menus.
 - [resources/](resources/): layouts XML, textos, propiedades, ajustes e icono.
 
 En [Schedule.mc](source/Service/Schedule.mc), `localClockSeconds` representa los campos de fecha/hora local para hacer calculos de calendario, y `momentFromLocalClock` los convierte en un instante real, teniendo en cuenta los cambios de hora. `next` calcula el siguiente aviso; `earliestAllowedTime` comparte la espera minima entre debug y el calendario normal; `respectMinimumSpacing` aplaza u omite un aviso cuando es necesario. `eventTime` combina esas reglas con las comprobaciones periodicas, sin cambiar la cadencia.

@@ -1,8 +1,5 @@
 <layout id="ReminderLayout">
     <drawable id="background"/>
-    <label id="title" x="50%" y="14%" font="Graphics.FONT_SMALL"
-           text="@Strings.AppName" color="0x55FFFF"
-           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
     <label id="status" x="50%" y="27%" font="Graphics.FONT_XTINY"
            text="@Strings.Enabled" color="0xFFFFFF"
            justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
@@ -12,10 +9,4 @@
     <!-- <label id="schedule" x="50%" y="58%" font="Graphics.FONT_XTINY"
            text="09:00 - 21:00 / 30 min" color="0xAAAAAA"
            justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/> -->
-    <label id="toggleHint" x="50%" y="74%" font="Graphics.FONT_XTINY"
-           text="@Strings.DeactivateHint" color="0xAAAAAA"
-           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
-    <label id="menuHint" x="50%" y="86%" font="Graphics.FONT_XTINY"
-           text="@Strings.MenuHint" color="0xAAAAAA"
-           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
 </layout>

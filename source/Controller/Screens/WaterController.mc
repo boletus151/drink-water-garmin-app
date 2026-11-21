@@ -1,8 +1,8 @@
 import Toybox.Time;
 
-class WaterController extends BaseWaterController {
+class WaterController extends RootController {
     function initialize() {
-        BaseWaterController.initialize();
+        RootController.initialize();
     }
 
     function nextReminder(config as WaterConfig) as Time.Moment? {

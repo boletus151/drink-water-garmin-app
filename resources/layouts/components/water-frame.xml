@@ -1,0 +1,17 @@
+<layout id="WaterFrameLayout">
+    <label id="title" x="50%" y="14%" font="Graphics.FONT_SMALL"
+           text="@Strings.AppName" color="0x55FFFF"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+    <label id="errorTitle" x="50%" y="38%" font="Graphics.FONT_XTINY"
+           text="@Strings.InvalidSettings" color="0xFFAA55"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+    <text-area id="errorDetail" x="center" y="44%" width="84%" height="24%"
+               font="Graphics.FONT_XTINY" text="@Strings.ScheduleError" color="0xFFAA55"
+               justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+    <label id="toggleHint" x="50%" y="74%" font="Graphics.FONT_XTINY"
+           text="@Strings.DeactivateHint" color="0xAAAAAA"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+    <label id="menuHint" x="50%" y="86%" font="Graphics.FONT_XTINY"
+           text="@Strings.MenuHint" color="0xAAAAAA"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+</layout>

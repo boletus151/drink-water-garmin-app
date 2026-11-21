@@ -11,7 +11,7 @@ import Toybox.WatchUi;
 class DrinkWaterApp extends Application.AppBase {
     var reminder as Boolean = false;
     var scheduleError as Boolean = false;
-    var visibleRoot as BaseWaterView? = null;
+    var visibleRoot as RootView? = null;
 
     function initialize() {
         AppBase.initialize();
@@ -33,7 +33,7 @@ class DrinkWaterApp extends Application.AppBase {
     }
 
     (:typecheck(disableBackgroundCheck))
-    function createRootView() as BaseWaterView {
+    function createRootView() as RootView {
         return reminder ? new ReminderView() : new WaterView();
     }
 

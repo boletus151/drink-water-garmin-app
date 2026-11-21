@@ -2,7 +2,7 @@ import Toybox.Application.Properties;
 import Toybox.Lang;
 import Toybox.WatchUi;
 
-class BaseWaterController extends WatchUi.BehaviorDelegate {
+class RootController extends WatchUi.BehaviorDelegate {
     function initialize() {
         BehaviorDelegate.initialize();
     }

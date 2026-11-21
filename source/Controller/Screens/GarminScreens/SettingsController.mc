@@ -47,7 +47,7 @@ class SettingsController extends WatchUi.Menu2InputDelegate {
         throw new Lang.UnexpectedTypeException("Unknown numeric setting: " + key, null, null);
     }
 
-    function createEditorView(controller as NumberController) as NumberView {
+    function createEditorView(controller as NumberController) as LayoutView {
         if (controller instanceof TimeController) {
             return new TimeView(controller);
         }
