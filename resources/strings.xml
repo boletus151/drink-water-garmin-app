@@ -2,6 +2,7 @@
     <string id="AppName">Bebe Agua App</string>
     <string id="AppTitle">Bebe Agua&#10;App</string>
     <string id="Reminder" scope="background">Recuerda beber agua</string>
+    <string id="ReminderWakePrompt" scope="background">Hora de beber agua&#10;¿Abrir para registrar?</string>
     <string id="Settings">Ajustes</string>
     <string id="Enabled">Activados</string>
     <string id="Disabled">Desactivados</string>

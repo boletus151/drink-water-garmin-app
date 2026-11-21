@@ -29,7 +29,7 @@ class WaterService extends System.ServiceDelegate {
             key = Schedule.dueKey(config, now);
         }
         if (key != null && (!(last instanceof Number) || key > last)) {
-            Background.requestApplicationWake(text(Rez.Strings.Reminder));
+            Background.requestApplicationWake(text(Rez.Strings.ReminderWakePrompt));
             last = key;
         }
         Schedule.arm(config, now.add(new Time.Duration(1)));
