@@ -5,16 +5,21 @@
 ## What it does
 
 - Sends scheduled hydration reminders without a phone connection.
-- Stores an informational daily goal of **50-10,000 ml**; it does **not** track water intake.
+- Tracks manually registered water intake against a daily goal of **50-10,000 ml**.
+- Uses a configurable serving of **100, 150, 200, or 250 ml**. Reaching or exceeding the goal stops reminders for the rest of that local day.
 - Supports reminder intervals of **15-60 minutes**, a same-day time window, and independently selected weekdays.
 - Allows persistent configuration on the watch or through Connect IQ mobile settings.
-- Shows the goal, schedule, enabled state, and next reminder on the main screen; a separate reminder screen displays the hydration prompt.
+- Shows separate **Objetivo** and **Llevas** labels, schedule, reminder state, and next reminder on the main screen. The reminder screen displays the hydration prompt and **Quedan** milliliters, never below zero. A dedicated **Objetivo cumplido** screen appears when the daily goal is reached or exceeded.
 
-Defaults: reminders enabled, **2,000 ml**, every **60 minutes**, **09:00-21:00**, every day.
+Defaults: reminders enabled, **2,000 ml** daily goal, **100 ml** per serving, every **60 minutes**, **09:00-21:00**, every day.
 
 ### Scheduling and limitations
 
 Reminders follow local watch time, starting at the configured start time. The end time is a reminder slot only when it matches the interval cadence. Overnight windows are unsupported; start must precede end, and at least one day must be selected. Invalid settings suspend scheduling and display an error.
+
+The daily total persists when the app closes or the watch restarts. A different local calendar date starts at **0 ml**; only the current daily aggregate is used, with no intake history. Reaching or exceeding the goal suppresses that day's reminders, including debug reminders, without changing the enabled setting. Future reminders remain scheduled and resume on the next selected day within the configured time window. Manually disabled reminders stay disabled.
+
+The total records only what you enter; the app cannot detect drinking automatically. You can still register servings after reaching the goal or while reminders are disabled. Totals are not capped at the goal. Changing the serving size affects only future entries; changing the goal immediately re-evaluates reminder scheduling against the existing daily total.
 
 The background service requests Garmin's **system dialog to open the app** ("Recuerda beber agua"), not a custom notification over the watch face. Dismissing it does not disable future reminders. The app does not request sound, vibration, or backlight activation; firmware controls presentation, so alarm-level punctuality is not guaranteed.
 
@@ -25,18 +30,23 @@ There is no server, analytics, intake history, or medical recommendation engine.
 ## Watch controls and settings
 
 - Open the app once after installation. **START** toggles reminders; **UP** or **MENU** opens settings.
+- Set **Cantidad toma (ml)** to **100, 150, 200, or 250** using **UP/DOWN**, then save with **START**. Changes are always in **50 ml** steps.
+- Whenever you drink that amount, open the menu and select its first option, **Registrar toma**. Its subtitle shows the amount to add. The app saves one serving and shows the updated total (for example, **Objetivo: 2000 ml**, **Llevas: 150 ml**). This is also available from the reminder and goal-completed screens.
+- At or above the goal, the app shows a dedicated **Objetivo cumplido** screen with the goal, consumed amount, and **Sin mas avisos hoy**, even if reminders are manually disabled. **START** remains the manual enable/disable control, and **UP/MENU** still opens settings. The main screen returns when a new local day begins or the goal is raised above the daily total; the screen selection is re-evaluated on opening, returning from settings, and foreground redraws.
 - **UP/DOWN** navigates or changes values; **START** selects, advances through digits, or saves. **BACK** returns to the previous digit or cancels from the first digit.
 - The goal changes in **50 ml** steps. Interval and time editors use highlighted digits; times are displayed as **HH:MM**.
 - In the days menu, **START** toggles the selected weekday. Exit to the watch face with **BACK**; reminders continue in the background.
 
-Properties use schema version **3**. `startTime` and `endTime` store minutes since midnight (**09:30 = 570**), which is also the format used by mobile settings. `day1` through `day7` mean Monday through Sunday. Older schema markers 1 and 2 are accepted, but there is **no migration**: when upgrading from separate hour/minute properties or Sunday-first day numbering, reconfigure the times and weekdays.
+Properties use schema version **3**. `servingMl` defaults to 100 and is restricted to the same four choices in mobile settings. `startTime` and `endTime` store minutes since midnight (**09:30 = 570**), which is also the format used by mobile settings. `day1` through `day7` mean Monday through Sunday. Older schema markers 1 and 2 are accepted, but there is **no migration**: when upgrading from separate hour/minute properties or Sunday-first day numbering, reconfigure the times and weekdays.
 
 ## Architecture
 
 The app uses an **MVC-style separation**, with Garmin input delegates as controllers and compiled XML layouts as presentation resources:
 
-1. **Application:** initializes the main/reminder view, persists settings and foreground reminder state, and re-arms scheduling on lifecycle/settings changes.
-2. **Model and services:** read and validate application properties, calculate local-calendar reminder slots, and register temporal background events.
+Each XML layout lives beside the Monkey C view or component that consumes it, under `source/View`. Screens have their own folders (for example, `source/View/Screens/Water/` contains `WaterView.mc` and `water.xml`). Shared layout components follow the same convention. Global strings, properties, settings, and drawables remain in `resources/`. The compiler reads resources from both locations through [monkey.jungle](monkey.jungle).
+
+1. **Application:** initializes the main/reminder view, persists settings, daily intake, and foreground reminder state, and re-arms scheduling on lifecycle/settings/intake changes.
+2. **Model and services:** read and validate application properties and the daily intake aggregate, calculate local-calendar reminder slots excluding completed days, and register temporal background events.
 3. **Background execution:** requests application wake for a due, non-duplicate reminder, schedules the next event, and returns its reminder key to the foreground through `Background.exit`. The service does not write properties or storage.
 4. **UI:** views render current data; controllers own editor drafts, validation, saving, and navigation. Screens compose shared components rather than inheriting from other screens. Garmin manages menu navigation; XML defines headers, rows, and screen content.
 
@@ -48,28 +58,30 @@ Paths below are relative to [source/](source/).
 | --- | --- |
 | [App/DrinkWaterApp.mc](source/App/DrinkWaterApp.mc) | Entry point, lifecycle, root-view switching, persistence, and scheduling-error handling. |
 | [Model/Config.mc](source/Model/Config.mc) | `WaterConfig`, property loading, validation, shared limits, and debug flag. |
+| [Model/Intake.mc](source/Model/Intake.mc) | Persistent daily-total reading, local-date keys, rollover, and stored-data validation; storage writes remain in the foreground application. |
 | [Service/Schedule.mc](source/Service/Schedule.mc) | Calendar calculations, due-slot keys, minimum spacing, checkpoints, and event registration. |
 | [Service/WaterService.mc](source/Service/WaterService.mc) | Background callback, duplicate suppression, wake request, and result delivery. |
 | [Style/Theme.mc](source/Style/Theme.mc) | Runtime colors and menu spacing constants. |
 | [View/Common/LayoutView.mc](source/View/Common/LayoutView.mc), [RootView.mc](source/View/Common/RootView.mc) | Typed XML-element access, API 3.1-compatible visibility/drawing, and root-view lifecycle helpers. |
 | [Controller/Common/RootController.mc](source/Controller/Common/RootController.mc) | Shared reminder toggle and settings navigation. |
-| [View/Screens/WaterView.mc](source/View/Screens/WaterView.mc), [ReminderView.mc](source/View/Screens/ReminderView.mc) | Main status/schedule screen and separate reminder screen. |
+| [View/Screens/Water/WaterView.mc](source/View/Screens/Water/WaterView.mc), [Reminder/ReminderView.mc](source/View/Screens/Reminder/ReminderView.mc), [GoalReached/GoalReachedView.mc](source/View/Screens/GoalReached/GoalReachedView.mc) | Main screen with separate goal/consumed labels, reminder screen with remaining milliliters, and dedicated goal-completed screen. |
 | [Controller/Screens/WaterController.mc](source/Controller/Screens/WaterController.mc), [ReminderController.mc](source/Controller/Screens/ReminderController.mc) | Root-screen input delegates; the main controller also provides the next reminder for display. |
-| [View/Screens/GoalView.mc](source/View/Screens/GoalView.mc), [IntervalView.mc](source/View/Screens/IntervalView.mc), [TimeView.mc](source/View/Screens/TimeView.mc) | Editor screens; one time view serves both start and end settings. |
+| [View/Screens/Goal/GoalView.mc](source/View/Screens/Goal/GoalView.mc), [Interval/IntervalView.mc](source/View/Screens/Interval/IntervalView.mc), [Time/TimeView.mc](source/View/Screens/Time/TimeView.mc) | Editor screens; one time view serves both start and end settings. |
 | [Controller/Screens/GoalController.mc](source/Controller/Screens/GoalController.mc), [IntervalController.mc](source/Controller/Screens/IntervalController.mc), [TimeController.mc](source/Controller/Screens/TimeController.mc) | Setting-specific ranges, digit rules, and time conversion on save. |
+| [Controller/Screens/ServingController.mc](source/Controller/Screens/ServingController.mc), [View/Screens/Serving/ServingView.mc](source/View/Screens/Serving/ServingView.mc) | Serving-size editor with 50 ml steps, bounds, validation, and shared numeric presentation. |
 | [View/Screens/GarminScreens/SettingsMenu.mc](source/View/Screens/GarminScreens/SettingsMenu.mc), [DaysMenu.mc](source/View/Screens/GarminScreens/DaysMenu.mc) | Native Garmin settings and weekday menus. |
 | [Controller/Screens/GarminScreens/SettingsController.mc](source/Controller/Screens/GarminScreens/SettingsController.mc), [DaysController.mc](source/Controller/Screens/GarminScreens/DaysController.mc) | Open editors, toggle settings/days, and refresh menu values. |
 | [Controller/Components/NumberController.mc](source/Controller/Components/NumberController.mc), [DigitController.mc](source/Controller/Components/DigitController.mc) | Shared draft editing, confirmation, cancellation, and button handling. |
 | [View/Components/NumberEditor.mc](source/View/Components/NumberEditor.mc), [DigitEditor.mc](source/View/Components/DigitEditor.mc) | Reusable numeric presentation and active-digit/error rendering. |
-| [View/Components/WaterFrame.mc](source/View/Components/WaterFrame.mc) | Shared root-screen header, errors, and control hints. |
-| [View/Components/SettingsList.mc](source/View/Components/SettingsList.mc), [SettingsTitle.mc](source/View/Components/SettingsTitle.mc), [SettingsItem.mc](source/View/Components/SettingsItem.mc) | Menu value formatting/refresh, headers, and focused rows. |
+| [View/Components/WaterFrame/WaterFrame.mc](source/View/Components/WaterFrame/WaterFrame.mc) | Shared root-screen header, errors, and control hints. |
+| [View/Components/SettingsList.mc](source/View/Components/SettingsList.mc), [SettingsTitle/SettingsTitle.mc](source/View/Components/SettingsTitle/SettingsTitle.mc), [SettingsItem/SettingsItem.mc](source/View/Components/SettingsItem/SettingsItem.mc) | Menu value formatting/refresh, headers, and focused rows. |
 
 ### Resources and project files
 
 | Files | Purpose |
 | --- | --- |
-| [resources/layouts/screens/](resources/layouts/screens/) | `water.xml`, `reminder.xml`, `goal.xml`, `interval.xml`, and `time.xml`: screen-specific layouts. |
-| [resources/layouts/components/](resources/layouts/components/) | `water-frame.xml`, `settings-menu-header.xml`, `days-menu-header.xml`, and `menu-item.xml`: reusable UI layouts. |
+| [source/View/Screens/](source/View/Screens/) | Screen-specific layouts beside their views: `Water/water.xml`, `Reminder/reminder.xml`, `GoalReached/goal-reached.xml`, `Goal/goal.xml`, `Serving/serving.xml`, `Interval/interval.xml`, and `Time/time.xml`. |
+| [source/View/Components/](source/View/Components/) | Reusable layouts beside their components: `WaterFrame/water-frame.xml`, both menu headers in `SettingsTitle/`, and `SettingsItem/menu-item.xml`. |
 | [resources/properties.xml](resources/properties.xml), [settings.xml](resources/settings.xml) | Persistent defaults/schema and mobile-settings fields/ranges. |
 | [resources/strings.xml](resources/strings.xml) | Spanish UI text and background-accessible messages. |
 | [resources/drawables.xml](resources/drawables.xml), [icon.svg](resources/icon.svg) | Background/focus drawables and launcher icon. |
@@ -77,7 +89,7 @@ Paths below are relative to [source/](source/).
 | [monkey.jungle](monkey.jungle) | Compiler source, test, resource, and manifest paths. |
 | [Makefile](Makefile), [run-simulator.sh](run-simulator.sh) | Strict builds, simulator execution, tests, and export; the script builds before running. |
 | [.vscode/launch.json](.vscode/launch.json) | Monkey C debugger configuration for `fr645`. |
-| [tests/ScheduleTests.mc](tests/ScheduleTests.mc) | Regression tests for configuration/types, calendar boundaries, reminder tolerance/spacing/checkpoints, editor persistence, menu toggles, and screen rendering. Tests that modify settings restore them after failures. |
+| [tests/ScheduleTests.mc](tests/ScheduleTests.mc) | Regression tests for configuration/types, calendar boundaries, reminder tolerance/spacing/checkpoints, daily intake and goal suspension/resumption, editor persistence, menu toggles, and screen rendering. Tests that modify settings/storage restore them after failures. |
 
 XML layouts use native labels/text areas and relative positions. Layout and theme changes require recompilation; keep XML colors consistent with the runtime palette.
 
@@ -198,11 +210,11 @@ Run these commands from the project directory in the Terminal session configured
 
    You should see the Spanish **Bebe agua** main screen with the goal and schedule. If loading fails, check that the simulator is open, the `fr645` device profile has finished downloading, and the terminal is using the intended SDK.
 
-3. Use the simulated watch buttons as described in **Watch controls and settings**: **START** toggles reminders or confirms a selection, **UP/MENU** opens settings, **UP/DOWN** changes values, and **BACK** returns or cancels. Check the goal, interval, time window, and weekdays, then return to the watch face to exercise background reminders.
+3. Use the simulated watch buttons as described in **Watch controls and settings**: **START** toggles reminders or confirms a selection, **UP/MENU** opens settings, **UP/DOWN** changes values, and **BACK** returns or cancels. Starting with a zero daily total, set the goal to **250 ml** and the serving to **150 ml**, then select **Registrar toma**: the main screen should show **Objetivo: 250 ml** and **Llevas: 150 ml**. Register another serving: the dedicated **Objetivo cumplido** screen should show **Llevas: 300 ml**. Raise the goal above the total to return to the main screen. Restore your intended settings afterward. Check the interval, time window, and weekdays, then return to the watch face to exercise background reminders.
 
 For interactive debugging in VS Code, install/configure Garmin's Monkey C extension with your SDK and developer key, select **Debug Bebe agua (Forerunner 645)**, and press **F5**. The configuration in [.vscode/launch.json](.vscode/launch.json) targets `fr645` and pauses at launch (`stopAtLaunch`); resume execution to interact with the app.
 
-`Config.DEBUG` in [source/Model/Config.mc](source/Model/Config.mc) is currently **false**. Enabling it and rebuilding schedules a one-off test reminder approximately 60 seconds after opening, outside normal day/time restrictions but still respecting Garmin's minimum spacing. This is useful for checking the background wake dialog without waiting for a normal reminder slot. Keep it disabled for normal use.
+`Config.DEBUG` in [source/Model/Config.mc](source/Model/Config.mc) is currently **false**. Enabling it and rebuilding schedules a one-off test reminder approximately 60 seconds after opening, outside normal day/time restrictions but still respecting Garmin's minimum spacing and the daily goal. This is useful for checking the background wake dialog without waiting for a normal reminder slot. If today's goal is already reached, raise it above the recorded total to exercise the debug reminder. Keep debug disabled for normal use.
 
 To run the regression tests explicitly, leave the simulator open and execute:
 
@@ -222,7 +234,7 @@ The simulator is useful for UI, settings, and scheduling checks, but does not es
 4. Open the watch's **GARMIN/APPS** folder and copy `bin/drink-water.prg` into it.
 5. Safely eject the watch, disconnect the cable, and wait for it to finish processing the app.
 6. On the watch, press **START**, find **Bebe agua** in the app list, and open it once to initialize scheduling.
-7. Check the goal, interval, start/end times, weekdays, and enabled state. Exit with **BACK** to leave reminders running in the background.
+7. Check the goal, serving size, interval, start/end times, weekdays, and enabled state. Use **Registrar toma** after drinking; exit with **BACK** to leave reminders running in the background until the daily goal is reached.
 
 If the app does not appear or cannot open, check the device model, firmware, successful build output, and destination folder. The simulator cannot guarantee real-device compatibility or background behavior.
 

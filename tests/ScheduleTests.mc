@@ -10,27 +10,31 @@ import Toybox.WatchUi;
 (:test)
 class ConfigProperties {
     var keys as Array<String> = ["schemaVersion", "enabled", "goalMl", "intervalMinutes",
-        "startTime", "endTime", "day1", "day2", "day3", "day4", "day5", "day6", "day7"];
+        "startTime", "endTime", "day1", "day2", "day3", "day4", "day5", "day6", "day7", "servingMl"];
     var previous as Array<Properties.ValueType> = [];
+    var previousIntake as Storage.ValueType = null;
 
     function initialize() {
         for (var i = 0; i < keys.size(); i += 1) {
             previous.add(Properties.getValue(keys[i]));
         }
+        previousIntake = Storage.getValue("dailyIntake");
     }
 
     function reset() as Void {
         var values = [3, true, 2000, 60, 540, 1260,
-            true, true, true, true, true, true, true] as Array<Properties.ValueType>;
+            true, true, true, true, true, true, true, 100] as Array<Properties.ValueType>;
         for (var i = 0; i < keys.size(); i += 1) {
             Properties.setValue(keys[i], values[i]);
         }
+        Storage.setValue("dailyIntake", null);
     }
 
     function restore() as Void {
         for (var i = 0; i < keys.size(); i += 1) {
             Properties.setValue(keys[i], previous[i]);
         }
+        Storage.setValue("dailyIntake", previousIntake);
     }
 }
 
@@ -61,14 +65,20 @@ function xmlLayoutsRenderScreensAndKeepNextOutOfTheReminder(logger as Test.Logge
     main.onLayout(dc);
     main.onUpdate(dc);
     Test.assert(main.findDrawableById("next") != null);
+    Test.assert(main.findDrawableById("goal") != null);
+    Test.assert(main.findDrawableById("consumed") != null);
     var reminder = new ReminderView();
     reminder.onLayout(dc);
     reminder.onUpdate(dc);
     Test.assert(reminder.findDrawableById("next") == null);
     Test.assert(reminder.findDrawableById("schedule") == null);
+    Test.assert(reminder.findDrawableById("remaining") != null);
+    var completed = new GoalReachedView();
+    completed.onLayout(dc);
+    completed.onUpdate(dc);
     var settings = new SettingsController(new SettingsMenu());
-    var keys = ["goalMl", "intervalMinutes", "startTime", "endTime"];
-    var values = [2000, 15, 570, 1260];
+    var keys = ["goalMl", "intervalMinutes", "startTime", "endTime", "servingMl"];
+    var values = [2000, 15, 570, 1260, 150];
     for (var i = 0; i < keys.size(); i += 1) {
         var controller = settings.createEditorController(keys[i], text(Rez.Strings.Settings), values[i]);
         var view = settings.createEditorView(controller);
@@ -78,9 +88,59 @@ function xmlLayoutsRenderScreensAndKeepNextOutOfTheReminder(logger as Test.Logge
             Test.assert(view instanceof GoalView);
         } else if (i == 1) {
             Test.assert(view instanceof IntervalView);
+        } else if (i == 4) {
+            Test.assert(view instanceof ServingView);
         } else {
             Test.assert(view instanceof TimeView);
         }
+    }
+    return true;
+}
+
+(:test)
+function completedGoalSelectsItsOwnScreenAndReturnsToMainWhenNoLongerReached(logger as Test.Logger) as Boolean {
+    var state = new ConfigProperties();
+    var app = waterApp();
+    var previousReminder = app.reminder;
+    var previousError = app.scheduleError;
+    var previousRoot = app.visibleRoot;
+    try {
+        state.reset();
+        app.visibleRoot = null;
+        app.scheduleError = false;
+        app.reminder = false;
+        Properties.setValue("goalMl", 250);
+        Properties.setValue("servingMl", 150);
+        Test.assert(app.createRootView() instanceof WaterView);
+        Test.assert(app.recordIntake());
+        Test.assert(app.createRootView() instanceof WaterView);
+        Test.assert(app.recordIntake());
+        Test.assert(app.createRootView() instanceof GoalReachedView);
+        app.reminder = true;
+        Test.assert(app.createRootView() instanceof GoalReachedView);
+        app.save("enabled", false);
+        Test.assert(app.createRootView() instanceof GoalReachedView);
+        app.save("goalMl", 350);
+        Test.assert(app.createRootView() instanceof WaterView);
+        app.save("goalMl", 250);
+        Test.assert(app.createRootView() instanceof GoalReachedView);
+        Storage.setValue("dailyIntake", {"day" => 19700101, "totalMl" => 300});
+        Test.assert(app.createRootView() instanceof WaterView);
+        var now = Time.now();
+        Storage.setValue("dailyIntake", {
+            "day" => Intake.dayKey(Gregorian.info(now, Time.FORMAT_SHORT)), "totalMl" => 300
+        });
+        Properties.setValue("servingMl", 125);
+        Test.assert(app.createRootView() instanceof WaterView);
+        Properties.setValue("servingMl", 150);
+        app.scheduleError = true;
+        Test.assert(app.createRootView() instanceof WaterView);
+    } finally {
+        state.restore();
+        app.reschedule();
+        app.reminder = previousReminder;
+        app.scheduleError = previousError;
+        app.visibleRoot = previousRoot;
     }
     return true;
 }
@@ -126,6 +186,7 @@ function layoutVisibilitySkipsHiddenElementsAndResetsWithANewLayout(logger as Te
 
 (:test)
 function reminderUsesItsOwnViewAndSavingReturnsToTheMainView(logger as Test.Logger) as Boolean {
+    var state = new ConfigProperties();
     var enabled = Properties.getValue("enabled");
     if (!(enabled instanceof Boolean)) {
         logger.error("El estado de los avisos no es booleano");
@@ -137,6 +198,7 @@ function reminderUsesItsOwnViewAndSavingReturnsToTheMainView(logger as Test.Logg
     var previousRoot = app.visibleRoot;
     var previousLast = Storage.getValue("lastReminder");
     try {
+        state.reset();
         app.visibleRoot = null;
         app.reminder = false;
         Test.assert(!(app.createRootView() instanceof ReminderView));
@@ -157,6 +219,7 @@ function reminderUsesItsOwnViewAndSavingReturnsToTheMainView(logger as Test.Logg
         app.save("enabled", enabled);
         Test.assert(!(app.createRootView() instanceof ReminderView));
     } finally {
+        state.restore();
         Storage.setValue("lastReminder", previousLast);
         app.reminder = previousReminder;
         app.scheduleError = previousError;
@@ -626,7 +689,7 @@ function togglesPersistAndRefreshMenusWithoutChangingOtherSettings(logger as Tes
         Test.assert(root.onSelect());
         Test.assertEqual(Properties.getValue("enabled"), false);
         var settings = new SettingsMenu();
-        var enabledItem = settings.getItem(0);
+        var enabledItem = settings.getItem(settings.findItemById("enabled"));
         Test.assert(enabledItem != null);
         if (enabledItem != null) {
             new SettingsController(settings).onSelect(enabledItem);
@@ -839,8 +902,8 @@ function timesSaveMinutesFromMidnightAndRefreshMenu(logger as Test.Logger) as Bo
         Test.assert(end.confirm());
         end.save();
         menu.refresh();
-        var startItem = menu.getItem(3);
-        var endItem = menu.getItem(4);
+        var startItem = menu.getItem(menu.findItemById("startTime"));
+        var endItem = menu.getItem(menu.findItemById("endTime"));
         var startLabel = startItem != null ? startItem.getSubLabel() : null;
         var endLabel = endItem != null ? endItem.getSubLabel() : null;
         var config = Config.read();
@@ -885,5 +948,254 @@ function checkpointsRunOnlyWhenTheyLeaveFiveMinutesBeforeTheReminder(logger as T
     }
     config.enabled = false;
     Test.assert(Schedule.eventTime(config, now, null) == null);
+    return true;
+}
+
+(:test)
+function servingEditorUsesOnlyFiftyMlStepsAndPersistsTheSelection(logger as Test.Logger) as Boolean {
+    var state = new ConfigProperties();
+    var app = waterApp();
+    var previousReminder = app.reminder;
+    var previousError = app.scheduleError;
+    var previousRoot = app.visibleRoot;
+    try {
+        state.reset();
+        app.visibleRoot = null;
+        var settings = new SettingsController(new SettingsMenu());
+        var editor = settings.createEditorController("servingMl", text(Rez.Strings.Serving), 100);
+        Test.assert(editor instanceof ServingController);
+        Test.assert(editor.onNextPage());
+        Test.assertEqual(editor.value, 100);
+        for (var expected = 150; expected <= 250; expected += 50) {
+            Test.assert(editor.onPreviousPage());
+            Test.assertEqual(editor.value, expected);
+        }
+        Test.assert(editor.onPreviousPage());
+        Test.assertEqual(editor.value, 250);
+        Test.assert(editor.onNextPage());
+        Test.assertEqual(editor.value, 200);
+        Test.assertEqual(Properties.getValue("servingMl"), 100);
+        editor.save();
+        Test.assertEqual(Config.read().servingMl, 200);
+        var menu = new SettingsMenu();
+        menu.refresh();
+        var record = menu.getItem(menu.findItemById("recordIntake"));
+        var amount = record != null ? record.getSubLabel() : null;
+        Test.assert(amount instanceof String && amount.equals("200 ml"));
+        var invalid = new ServingController(text(Rez.Strings.Serving), 125);
+        Test.assert(invalid.error != null);
+        invalid.change(1);
+        Test.assertEqual(invalid.value, 150);
+        Test.assert(invalid.confirm());
+        Test.assertEqual(Properties.getValue("servingMl"), 200);
+    } finally {
+        state.restore();
+        app.reschedule();
+        app.reminder = previousReminder;
+        app.scheduleError = previousError;
+        app.visibleRoot = previousRoot;
+    }
+    return true;
+}
+
+(:test)
+function servingValidationRejectsOutOfRangeAndIntermediateAmounts(logger as Test.Logger) as Boolean {
+    var state = new ConfigProperties();
+    try {
+        state.reset();
+        var amounts = [99, 100, 125, 150, 175, 200, 250, 251];
+        var valid = [false, true, false, true, false, true, true, false];
+        for (var i = 0; i < amounts.size(); i += 1) {
+            Properties.setValue("servingMl", amounts[i]);
+            var config = Config.read();
+            Test.assert((config.error == null) == valid[i]);
+            if (!valid[i]) {
+                var error = config.error;
+                Test.assert(error != null && error.equals(text(Rez.Strings.InvalidServing)));
+                Test.assert(Schedule.eventTime(config, Time.now(), null) == null);
+            }
+            Test.assertEqual(Properties.getValue("servingMl"), amounts[i]);
+        }
+    } finally {
+        state.restore();
+    }
+    return true;
+}
+
+(:test)
+function dailyIntakePersistsAndResetsOnLocalCalendarBoundaries(logger as Test.Logger) as Boolean {
+    var state = new ConfigProperties();
+    try {
+        state.reset();
+        var dates = [[2026, 12, 31, 2027, 1, 1], [2028, 2, 28, 2028, 2, 29]];
+        for (var i = 0; i < dates.size(); i += 1) {
+            var date = dates[i];
+            var eveningClock = Gregorian.moment({
+                :year => date[0], :month => date[1], :day => date[2],
+                :hour => 23, :minute => 59, :second => 59
+            });
+            var morningClock = Gregorian.moment({
+                :year => date[3], :month => date[4], :day => date[5],
+                :hour => 0, :minute => 0, :second => 0
+            });
+            var evening = Schedule.momentFromLocalClock(eveningClock.value(), Time.now());
+            var morning = Schedule.momentFromLocalClock(morningClock.value(), Time.now());
+            Test.assert(evening != null && morning != null);
+            if (evening != null && morning != null) {
+                var day = date[0] * 10000 + date[1] * 100 + date[2];
+                Storage.setValue("dailyIntake", {"day" => day, "totalMl" => 2000});
+                var first = Config.readAt(evening);
+                var reopened = Config.readAt(evening);
+                Test.assertEqual(first.consumedMl, 2000);
+                Test.assertEqual(reopened.consumedMl, 2000);
+                Test.assert(first.goalReached(evening));
+                var nextDay = Config.readAt(morning);
+                Test.assertEqual(nextDay.consumedMl, 0);
+                Test.assert(!nextDay.goalReached(morning));
+                Test.assert(nextDay.enabled);
+            }
+        }
+    } finally {
+        state.restore();
+    }
+    return true;
+}
+
+(:test)
+function reachingOrExceedingGoalSkipsTodayButKeepsFutureReminders(logger as Test.Logger) as Boolean {
+    var config = new WaterConfig();
+    config.goalMl = 500;
+    var localClock = Gregorian.moment({
+        :year => 2026, :month => 11, :day => 23, :hour => 9, :minute => 0, :second => 0
+    });
+    var now = Schedule.momentFromLocalClock(localClock.value(), Time.now());
+    Test.assert(now != null);
+    if (now == null) {
+        logger.error("No se pudo convertir la hora local");
+        return false;
+    }
+    config.intakeDay = 20261123;
+    config.consumedMl = 450;
+    Test.assert(Schedule.dueKey(config, now) != null);
+    var belowGoal = Schedule.next(config, now);
+    Test.assert(belowGoal != null && belowGoal.value() == now.value());
+    for (var total = 500; total <= 550; total += 50) {
+        config.consumedMl = total;
+        Test.assert(Schedule.dueKey(config, now) == null);
+        Test.assert(Schedule.debugDueKey(config, now, now.value(), true) == null);
+        Test.assert(Schedule.debugEventTime(config, now, null, true) == null);
+        var next = Schedule.next(config, now);
+        Test.assert(next != null);
+        if (next != null) {
+            var info = Gregorian.info(next, Time.FORMAT_SHORT);
+            Test.assertEqual(info.day, 24);
+            Test.assertEqual(info.hour, 9);
+            Test.assertEqual(info.min, 0);
+            Test.assert(Schedule.dueKey(config, next) != null);
+            Test.assert(Schedule.debugEventTime(config, next, null, true) != null);
+        }
+        var event = Schedule.eventTime(config, now, null);
+        Test.assert(event != null);
+        if (event != null) {
+            Test.assert(Schedule.dueKey(config, event) == null);
+        }
+    }
+    config.goalMl = 600;
+    Test.assert(Schedule.dueKey(config, now) != null);
+    config.goalMl = 500;
+    config.days = [true, false, false, false, false, false, false];
+    var nextWeek = Schedule.next(config, now);
+    Test.assert(nextWeek != null);
+    if (nextWeek != null) {
+        Test.assertEqual(Gregorian.info(nextWeek, Time.FORMAT_SHORT).day, 30);
+    }
+    config.enabled = false;
+    Test.assert(Schedule.next(config, now) == null);
+    if (nextWeek != null) {
+        Test.assert(Schedule.dueKey(config, nextWeek) == null);
+    }
+    return true;
+}
+
+(:test)
+function recordingUsesSavedAmountAndIgnoresStaleWakeData(logger as Test.Logger) as Boolean {
+    var state = new ConfigProperties();
+    var app = waterApp();
+    var previousReminder = app.reminder;
+    var previousError = app.scheduleError;
+    var previousRoot = app.visibleRoot;
+    var previousLast = Storage.getValue("lastReminder");
+    try {
+        state.reset();
+        app.visibleRoot = null;
+        Properties.setValue("goalMl", 250);
+        Properties.setValue("servingMl", 150);
+        app.reminder = true;
+        Test.assert(app.recordIntake());
+        Test.assert(!app.reminder);
+        Test.assertEqual(Config.read().consumedMl, 150);
+        Test.assert(app.recordIntake());
+        var now = Time.now();
+        var completed = Config.readAt(now);
+        Test.assertEqual(completed.consumedMl, 300);
+        Test.assert(completed.goalReached(now));
+        Test.assertEqual(Properties.getValue("enabled"), true);
+        Storage.setValue("lastReminder", null);
+        app.onBackgroundData(100);
+        Test.assert(!app.reminder);
+        Properties.setValue("servingMl", 125);
+        Test.assert(!app.recordIntake());
+        Test.assertEqual(Intake.read(now).totalMl, 300);
+        Properties.setValue("servingMl", 250);
+        Properties.setValue("enabled", false);
+        Test.assert(app.recordIntake());
+        Test.assertEqual(Config.read().consumedMl, 550);
+        Test.assertEqual(Properties.getValue("enabled"), false);
+        Storage.setValue("dailyIntake", {"day" => 19700101, "totalMl" => 2000});
+        Test.assert(app.recordIntake());
+        Test.assertEqual(Config.read().consumedMl, 250);
+    } finally {
+        state.restore();
+        Storage.setValue("lastReminder", previousLast);
+        app.reschedule();
+        app.reminder = previousReminder;
+        app.scheduleError = previousError;
+        app.visibleRoot = previousRoot;
+    }
+    return true;
+}
+
+(:test)
+function invalidIntakeStorageIsReportedAndNotOverwritten(logger as Test.Logger) as Boolean {
+    var state = new ConfigProperties();
+    var app = waterApp();
+    var previousReminder = app.reminder;
+    var previousError = app.scheduleError;
+    var previousRoot = app.visibleRoot;
+    try {
+        state.reset();
+        app.visibleRoot = null;
+        var now = Time.now();
+        var day = Intake.dayKey(Gregorian.info(now, Time.FORMAT_SHORT));
+        var invalid = ["invalid", {"day" => day, "totalMl" => -100},
+            {"day" => day, "totalMl" => 125}, {"day" => "invalid", "totalMl" => 100}]
+            as Array<Storage.ValueType>;
+        for (var i = 0; i < invalid.size(); i += 1) {
+            Storage.setValue("dailyIntake", invalid[i]);
+            var config = Config.readAt(now);
+            var error = config.error;
+            Test.assert(error != null && error.equals(text(Rez.Strings.InvalidIntake)));
+            Test.assert(Schedule.eventTime(config, now, null) == null);
+            Test.assert(!app.recordIntake());
+            var unchanged = Config.readAt(now).error;
+            Test.assert(unchanged != null && unchanged.equals(text(Rez.Strings.InvalidIntake)));
+        }
+    } finally {
+        state.restore();
+        app.reschedule();
+        app.reminder = previousReminder;
+        app.scheduleError = previousError;
+        app.visibleRoot = previousRoot;
+    }
     return true;
 }

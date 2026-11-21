@@ -1,6 +1,8 @@
 import Toybox.Application;
 import Toybox.Application.Properties;
 import Toybox.Lang;
+import Toybox.Time;
+import Toybox.Time.Gregorian;
 
 (:background)
 function text(id as ResourceId) as String {
@@ -11,6 +13,9 @@ function text(id as ResourceId) as String {
 class WaterConfig {
     var enabled as Boolean = true;
     var goalMl as Number = 2000;
+    var servingMl as Number = 100;
+    var intakeDay as Number? = null;
+    var consumedMl as Number = 0;
     var intervalMinutes as Number = 60;
     var startMinute as Number = 540;
     var endMinute as Number = 1260;
@@ -20,9 +25,20 @@ class WaterConfig {
     function initialize() {
     }
 
+    function goalReachedOnDay(day as Number) as Boolean {
+        return intakeDay == day && consumedMl >= goalMl;
+    }
+
+    function goalReached(now as Time.Moment) as Boolean {
+        return goalReachedOnDay(Intake.dayKey(Gregorian.info(now, Time.FORMAT_SHORT)));
+    }
+
     function validate() as String? {
         if (goalMl < 50 || goalMl > 10000) {
             return text(Rez.Strings.InvalidGoal);
+        }
+        if (!Config.validServing(servingMl)) {
+            return text(Rez.Strings.InvalidServing);
         }
         if (intervalMinutes < Config.MIN_INTERVAL || intervalMinutes > Config.MAX_INTERVAL) {
             return text(Rez.Strings.InvalidInterval);
@@ -41,18 +57,29 @@ class WaterConfig {
 
 (:background)
 module Config {
-    const DEBUG = false;
+    const DEBUG = true;
     const MIN_INTERVAL = 15;
     const MAX_INTERVAL = 60;
+    const MIN_SERVING = 100;
+    const MAX_SERVING = 250;
+    const SERVING_STEP = 50;
+
+    function validServing(value as Number) as Boolean {
+        return value >= MIN_SERVING && value <= MAX_SERVING && value % SERVING_STEP == 0;
+    }
 
     function read() as WaterConfig {
+        return readAt(Time.now());
+    }
+
+    function readAt(now as Time.Moment) as WaterConfig {
         var result = new WaterConfig();
         var version = Properties.getValue("schemaVersion");
         if (!(version instanceof Number) || version < 1 || version > 3) {
             result.error = text(Rez.Strings.UnsupportedVersion);
             return result;
         }
-        var keys = ["goalMl", "intervalMinutes", "startTime", "endTime"];
+        var keys = ["goalMl", "intervalMinutes", "startTime", "endTime", "servingMl"];
         var values = [] as Array<Number>;
         for (var i = 0; i < keys.size(); i += 1) {
             var value = Properties.getValue(keys[i]);
@@ -72,6 +99,7 @@ module Config {
         result.intervalMinutes = values[1];
         result.startMinute = values[2];
         result.endMinute = values[3];
+        result.servingMl = values[4];
         for (var day = 1; day <= 7; day += 1) {
             var selected = Properties.getValue("day" + day.toString());
             if (!(selected instanceof Boolean)) {
@@ -81,6 +109,12 @@ module Config {
             result.days[day - 1] = selected;
         }
         result.error = result.validate();
+        if (result.error == null) {
+            var intake = Intake.read(now);
+            result.intakeDay = intake.day;
+            result.consumedMl = intake.totalMl;
+            result.error = intake.error;
+        }
         return result;
     }
 }

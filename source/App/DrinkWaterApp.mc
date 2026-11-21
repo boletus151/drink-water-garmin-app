@@ -34,16 +34,35 @@ class DrinkWaterApp extends Application.AppBase {
 
     (:typecheck(disableBackgroundCheck))
     function createRootView() as RootView {
+        if (showGoalReached()) {
+            return new GoalReachedView();
+        }
         return reminder ? new ReminderView() : new WaterView();
     }
 
     (:typecheck(disableBackgroundCheck))
-    function refreshRootView() as Void {
+    function showGoalReached() as Boolean {
+        var now = Time.now();
+        var config = Config.readAt(now);
+        return config.error == null && !scheduleError && config.goalReached(now);
+    }
+
+    (:typecheck(disableBackgroundCheck))
+    function refreshRootView() as Boolean {
         var view = visibleRoot;
-        if (view != null && reminder != (view instanceof ReminderView)) {
-            var nextView = createRootView();
-            WatchUi.switchToView(nextView, nextView.controller, WatchUi.SLIDE_IMMEDIATE);
+        if (view != null) {
+            var completed = showGoalReached();
+            var isCompleted = view instanceof GoalReachedView;
+            var isReminder = view instanceof ReminderView;
+            var isMain = view instanceof WaterView;
+            var matches = completed ? isCompleted : reminder ? isReminder : isMain;
+            if (!matches) {
+                var nextView = createRootView();
+                WatchUi.switchToView(nextView, nextView.controller, WatchUi.SLIDE_IMMEDIATE);
+                return true;
+            }
         }
+        return false;
     }
 
     function getServiceDelegate() as [System.ServiceDelegate] {
@@ -58,7 +77,10 @@ class DrinkWaterApp extends Application.AppBase {
     function onBackgroundData(data as Application.PersistableType) as Void {
         if (data instanceof Number) {
             var previous = Storage.getValue("lastReminder");
-            reminder = !(previous instanceof Number) || data > previous;
+            var now = Time.now();
+            var config = Config.readAt(now);
+            reminder = (!(previous instanceof Number) || data > previous) &&
+                config.enabled && config.error == null && !config.goalReached(now);
             Storage.setValue("lastReminder", data);
             refreshRootView();
             WatchUi.requestUpdate();
@@ -68,6 +90,7 @@ class DrinkWaterApp extends Application.AppBase {
     (:typecheck(disableBackgroundCheck))
     function onSettingsChanged() as Void {
         reschedule();
+        refreshRootView();
         WatchUi.requestUpdate();
     }
 
@@ -89,6 +112,26 @@ class DrinkWaterApp extends Application.AppBase {
         reschedule();
         refreshRootView();
         WatchUi.requestUpdate();
+    }
+
+    (:typecheck(disableBackgroundCheck))
+    function recordIntake() as Boolean {
+        var now = Time.now();
+        var config = Config.readAt(now);
+        if (config.error != null) {
+            System.println("DrinkWater: " + config.error);
+            WatchUi.requestUpdate();
+            return false;
+        }
+        Storage.setValue("dailyIntake", {
+            "day" => Intake.dayKey(Toybox.Time.Gregorian.info(now, Time.FORMAT_SHORT)),
+            "totalMl" => config.consumedMl + config.servingMl
+        });
+        reminder = false;
+        reschedule();
+        refreshRootView();
+        WatchUi.requestUpdate();
+        return true;
     }
 
 }

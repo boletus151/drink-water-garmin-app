@@ -15,6 +15,12 @@ class SettingsController extends WatchUi.Menu2InputDelegate {
         if (!(key instanceof String)) {
             throw new Lang.UnexpectedTypeException("Setting ID must be String", null, null);
         }
+        if (key.equals("recordIntake")) {
+            if (waterApp().recordIntake()) {
+                WatchUi.popView(WatchUi.SLIDE_DOWN);
+            }
+            return;
+        }
         if (key.equals("days")) {
             var menu = new DaysMenu();
             WatchUi.pushView(menu, new DaysController(menu), WatchUi.SLIDE_UP);
@@ -44,6 +50,9 @@ class SettingsController extends WatchUi.Menu2InputDelegate {
         if (key.equals("goalMl")) {
             return new GoalController(title, value);
         }
+        if (key.equals("servingMl")) {
+            return new ServingController(title, value);
+        }
         throw new Lang.UnexpectedTypeException("Unknown numeric setting: " + key, null, null);
     }
 
@@ -56,6 +65,9 @@ class SettingsController extends WatchUi.Menu2InputDelegate {
         }
         if (controller instanceof GoalController) {
             return new GoalView(controller);
+        }
+        if (controller instanceof ServingController) {
+            return new ServingView(controller);
         }
         throw new Lang.UnexpectedTypeException("Unsupported editor controller: " + controller.key, null, null);
     }

@@ -3,6 +3,7 @@
         <property id="schemaVersion" type="number">3</property>
         <property id="enabled" type="boolean">true</property>
         <property id="goalMl" type="number">2000</property>
+        <property id="servingMl" type="number">100</property>
         <property id="intervalMinutes" type="number">60</property>
         <property id="startTime" type="number">540</property>
         <property id="endTime" type="number">1260</property>

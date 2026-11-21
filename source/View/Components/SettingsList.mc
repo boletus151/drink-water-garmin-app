@@ -4,7 +4,7 @@ import Toybox.Lang;
 import Toybox.WatchUi;
 
 class SettingsList {
-    var _count as Number = 0;
+    var _keys as Array<String> = [];
 
     function initialize() {
     }
@@ -16,7 +16,7 @@ class SettingsList {
 
     function addSetting(menu as WatchUi.CustomMenu, key as String, title as ResourceId) as Void {
         menu.addItem(new SettingsItem(text(title), valueText(key), key));
-        _count += 1;
+        _keys.add(key);
     }
 
     function valueText(key as String) as String {
@@ -34,13 +34,10 @@ class SettingsList {
     }
 
     function refresh(menu as WatchUi.CustomMenu) as Void {
-        for (var i = 0; i < _count; i += 1) {
-            var item = menu.getItem(i);
+        for (var i = 0; i < _keys.size(); i += 1) {
+            var item = menu.getItem(menu.findItemById(_keys[i]));
             if (item != null) {
-                var key = item.getId();
-                if (key instanceof String && !key.equals("days")) {
-                    item.setSubLabel(valueText(key));
-                }
+                item.setSubLabel(valueText(_keys[i]));
             }
         }
     }

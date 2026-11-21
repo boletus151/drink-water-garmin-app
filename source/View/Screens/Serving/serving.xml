@@ -1,0 +1,18 @@
+<layout id="ServingLayout">
+    <drawable id="background"/>
+    <label id="title" x="50%" y="20%" font="Graphics.FONT_SMALL"
+           text="@Strings.Serving" color="0x55FFFF"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+    <label id="value" x="50%" y="43%" font="Graphics.FONT_NUMBER_MILD"
+           text="100" color="0xFFFFFF"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+    <label id="range" x="50%" y="62%" font="Graphics.FONT_XTINY"
+           text="@Strings.ServingRange" color="0xAAAAAA"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+    <label id="editHint" x="50%" y="74%" font="Graphics.FONT_XTINY"
+           text="@Strings.EditHint" color="0xAAAAAA"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+    <label id="saveHint" x="50%" y="84%" font="Graphics.FONT_XTINY"
+           text="@Strings.SaveHint" color="0xAAAAAA"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+</layout>

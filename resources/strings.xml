@@ -5,6 +5,18 @@
     <string id="Enabled">Activados</string>
     <string id="Disabled">Desactivados</string>
     <string id="Goal">Objetivo diario (ml)</string>
+    <string id="GoalReached">Objetivo cumplido</string>
+    <string id="GoalLabel">Objetivo</string>
+    <string id="ConsumedLabel">Llevas</string>
+    <string id="RemainingLabel">Quedan</string>
+    <string id="GoalPaused">Sin mas avisos hoy</string>
+    <string id="RecordIntake">Registrar toma</string>
+    <string id="Serving">Cantidad toma (ml)</string>
+    <string id="ServingRange">100 - 250 ml / paso 50</string>
+    <string id="Serving100">100 ml</string>
+    <string id="Serving150">150 ml</string>
+    <string id="Serving200">200 ml</string>
+    <string id="Serving250">250 ml</string>
     <string id="Interval">Intervalo (min)</string>
     <string id="StartHour">Hora inicial</string>
     <string id="EndHour">Hora final</string>
@@ -35,6 +47,8 @@
     <string id="NoDays" scope="background">Selecciona algun dia</string>
     <string id="InvalidInterval" scope="background">Intervalo: 15 a 60 min</string>
     <string id="InvalidGoal" scope="background">Objetivo: 50 a 2000 ml</string>
+    <string id="InvalidServing" scope="background">Toma: 100, 150, 200 o 250 ml</string>
+    <string id="InvalidIntake" scope="background">Error en el registro de agua</string>
     <string id="UnsupportedVersion" scope="background">Version de ajustes no compatible</string>
     <string id="ScheduleError">Error al programar avisos</string>
 </resources>

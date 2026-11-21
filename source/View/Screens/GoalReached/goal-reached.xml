@@ -1,0 +1,15 @@
+<layout id="GoalReachedLayout">
+    <drawable id="background"/>
+    <label id="content" x="50%" y="30%" font="Graphics.FONT_XTINY"
+           text="@Strings.GoalReached" color="0x55FFFF"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+    <label id="goal" x="50%" y="43%" font="Graphics.FONT_XTINY"
+           text="@Strings.GoalLabel" color="0xFFFFFF"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+    <label id="consumed" x="50%" y="53%" font="Graphics.FONT_XTINY"
+           text="@Strings.ConsumedLabel" color="0xFFFFFF"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+    <label id="paused" x="50%" y="64%" font="Graphics.FONT_XTINY"
+           text="@Strings.GoalPaused" color="0xAAAAAA"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+</layout>

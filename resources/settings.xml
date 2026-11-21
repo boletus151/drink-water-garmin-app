@@ -2,6 +2,14 @@
     <settings>
         <setting propertyKey="@Properties.enabled" title="@Strings.AppName"><settingConfig type="boolean"/></setting>
         <setting propertyKey="@Properties.goalMl" title="@Strings.Goal"><settingConfig type="numeric" min="50" max="10000"/></setting>
+        <setting propertyKey="@Properties.servingMl" title="@Strings.Serving">
+            <settingConfig type="list">
+                <listEntry value="100">@Strings.Serving100</listEntry>
+                <listEntry value="150">@Strings.Serving150</listEntry>
+                <listEntry value="200">@Strings.Serving200</listEntry>
+                <listEntry value="250">@Strings.Serving250</listEntry>
+            </settingConfig>
+        </setting>
         <setting propertyKey="@Properties.intervalMinutes" title="@Strings.Interval"><settingConfig type="numeric" min="15" max="60"/></setting>
         <setting propertyKey="@Properties.startTime" title="@Strings.StartHour" prompt="@Strings.TimeMinutesHint"><settingConfig type="numeric" min="0" max="1439"/></setting>
         <setting propertyKey="@Properties.endTime" title="@Strings.EndHour" prompt="@Strings.TimeMinutesHint"><settingConfig type="numeric" min="0" max="1439"/></setting>

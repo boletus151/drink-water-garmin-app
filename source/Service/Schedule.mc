@@ -20,7 +20,7 @@ module Schedule {
 
     function debugEventTime(config as WaterConfig, opened as Time.Moment,
                             lastEvent as Time.Moment?, debug as Boolean) as Time.Moment? {
-        if (!debug || !config.enabled || config.error != null) {
+        if (!debug || !config.enabled || config.error != null || config.goalReached(opened)) {
             return null;
         }
         return earliestAllowedTime(opened.add(new Time.Duration(60)), lastEvent);
@@ -28,7 +28,7 @@ module Schedule {
 
     function debugDueKey(config as WaterConfig, now as Time.Moment,
                          target as Number?, debug as Boolean) as Number? {
-        if (!debug || !config.enabled || config.error != null || target == null ||
+        if (!debug || !config.enabled || config.error != null || config.goalReached(now) || target == null ||
             now.value() < target || now.value() - target > MAX_DELAY_SECONDS) {
             return null;
         }
@@ -36,7 +36,7 @@ module Schedule {
     }
 
     function pendingDebug(config as WaterConfig, earliest as Time.Moment) as Time.Moment? {
-        if (!Config.DEBUG || !config.enabled || config.error != null) {
+        if (!Config.DEBUG || !config.enabled || config.error != null || config.goalReached(earliest)) {
             return null;
         }
         var target = Storage.getValue("debugReminderTime");
@@ -92,6 +92,9 @@ module Schedule {
         // Step through calendar dates, not elapsed 24-hour periods.
         for (var day = 0; day <= 7; day += 1) {
             var date = Gregorian.utcInfo(new Time.Moment(localMidnight + day * 86400), Time.FORMAT_SHORT);
+            if (config.goalReachedOnDay(Intake.dayKey(date))) {
+                continue;
+            }
             var seconds = day == 0 ? info.hour * 3600 + info.min * 60 + info.sec : 0;
             var weekday = date.day_of_week as Number;
             var slot = minuteOnDay(config, weekday, seconds);
@@ -107,7 +110,7 @@ module Schedule {
     }
 
     function dueKey(config as WaterConfig, now as Time.Moment) as Number? {
-        if (!config.enabled || config.error != null) {
+        if (!config.enabled || config.error != null || config.goalReached(now)) {
             return null;
         }
         var info = Gregorian.info(now, Time.FORMAT_SHORT);

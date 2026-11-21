@@ -16,15 +16,23 @@ class WaterView extends RootView {
     }
 
     function onUpdate(dc as Graphics.Dc) as Void {
-        var config = Config.read();
-        label("status").setText(text(config.enabled ? Rez.Strings.Enabled : Rez.Strings.Disabled));
+        if (waterApp().refreshRootView()) {
+            return;
+        }
+        var now = Time.now();
+        var config = Config.readAt(now);
+        var status = !config.enabled ? Rez.Strings.Disabled :
+            config.goalReached(now) ? Rez.Strings.GoalReached : Rez.Strings.Enabled;
+        label("status").setText(text(status));
         label("status").setColor(config.enabled ? Theme.TEXT : Theme.MUTED);
         var valid = WaterFrame.update(self, config, waterApp().scheduleError);
-        show("content", valid);
+        show("goal", valid);
+        show("consumed", valid);
         show("schedule", valid);
         show("next", valid);
         if (valid) {
-            label("content").setText(config.goalMl.toString() + " ml / dia");
+            label("goal").setText(text(Rez.Strings.GoalLabel) + ": " + config.goalMl.toString() + " ml");
+            label("consumed").setText(text(Rez.Strings.ConsumedLabel) + ": " + config.consumedMl.toString() + " ml");
             label("schedule").setText(clockText(config.startMinute) + " - " + clockText(config.endMinute) +
                 " / " + config.intervalMinutes.toString() + " min");
             var nextTime = _water.nextReminder(config);
