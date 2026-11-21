@@ -167,6 +167,8 @@ Esto genera `bin/drink-water.iq`. La publicacion en Connect IQ Store, incluida u
 - [WaterView.mc](source/WaterView.mc) y [SettingsView.mc](source/SettingsView.mc): interfaz por botones.
 - [resources/](resources/): textos, propiedades, ajustes e icono.
 
+En [Schedule.mc](source/Schedule.mc), `localClockSeconds` representa los campos de fecha/hora local para hacer calculos de calendario, y `momentFromLocalClock` los convierte en un instante real, teniendo en cuenta los cambios de hora. `next` calcula el siguiente aviso; `earliestAllowedTime` comparte la espera minima entre debug y el calendario normal; `respectMinimumSpacing` aplaza u omite un aviso cuando es necesario. `eventTime` combina esas reglas con las comprobaciones periodicas, sin cambiar la cadencia.
+
 El esquema de ajustes actual es `schemaVersion=3`, con `startTime` y `endTime` en minutos desde medianoche. Los dias siguen el orden lunes-domingo en propiedades, menus y ajustes del movil. El calendario de Garmin usa domingo=1; [Schedule.mc](source/Schedule.mc) convierte esa numeracion al indice interno lunes=0.
 
 No hay migraciones ni copias temporales. Se aceptan los marcadores de version 1, 2 y 3, pero siempre se leen las propiedades actuales; las cuatro propiedades antiguas de hora/minuto se ignoran. Si actualizas desde una version donde `day1` era domingo, **revisa y configura de nuevo los dias activos**: los valores se conservan, pero su significado cambia.

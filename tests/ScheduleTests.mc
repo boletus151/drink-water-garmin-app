@@ -152,10 +152,10 @@ function invalidSettingsStopScheduling(logger as Test.Logger) as Boolean {
 function nextSkipsToNextSelectedWeek(logger as Test.Logger) as Boolean {
     var config = new WaterConfig();
     config.days = [true, false, false, false, false, false, false];
-    var civil = Gregorian.moment({
+    var localClock = Gregorian.moment({
         :year => 2026, :month => 11, :day => 23, :hour => 21, :minute => 1, :second => 0
     });
-    var now = Schedule.localMoment(civil.value(), Time.now());
+    var now = Schedule.momentFromLocalClock(localClock.value(), Time.now());
     if (now == null) {
         logger.error("No se pudo convertir la hora local");
         return false;
@@ -181,10 +181,10 @@ function mondayFirstDaysMatchCalendarForSchedulingAndDueReminders(logger as Test
         config.days = [false, false, false, false, false, false, false];
         config.days[selected] = true;
         for (var day = 0; day < 7; day += 1) {
-            var civil = Gregorian.moment({
+            var localClock = Gregorian.moment({
                 :year => 2026, :month => 11, :day => 23 + day, :hour => 9, :minute => 0, :second => 0
             });
-            var now = Schedule.localMoment(civil.value(), Time.now());
+            var now = Schedule.momentFromLocalClock(localClock.value(), Time.now());
             if (now == null) {
                 logger.error("No se pudo convertir la hora local");
                 return false;
@@ -240,10 +240,10 @@ function daysAreReadDirectlyWithoutMigratingStoredSelections(logger as Test.Logg
 (:test)
 function lateEventsDoNotReplayOldReminders(logger as Test.Logger) as Boolean {
     var config = new WaterConfig();
-    var civil = Gregorian.moment({
+    var localClock = Gregorian.moment({
         :year => 2026, :month => 11, :day => 23, :hour => 9, :minute => 0, :second => 30
     });
-    var now = Schedule.localMoment(civil.value(), Time.now());
+    var now = Schedule.momentFromLocalClock(localClock.value(), Time.now());
     if (now == null) {
         logger.error("No se pudo convertir la hora local");
         return false;
@@ -259,10 +259,10 @@ function lateEventsDoNotReplayOldReminders(logger as Test.Logger) as Boolean {
 function minimumSpacingDefersNearbyReminder(logger as Test.Logger) as Boolean {
     var config = new WaterConfig();
     config.intervalMinutes = 15;
-    var civil = Gregorian.moment({
+    var localClock = Gregorian.moment({
         :year => 2026, :month => 11, :day => 23, :hour => 9, :minute => 10, :second => 1
     });
-    var last = Schedule.localMoment(civil.value(), Time.now());
+    var last = Schedule.momentFromLocalClock(localClock.value(), Time.now());
     if (last == null) {
         logger.error("No se pudo convertir la hora local");
         return false;
@@ -487,10 +487,10 @@ function timesSaveMinutesFromMidnightAndRefreshMenu(logger as Test.Logger) as Bo
 (:test)
 function checkpointsDoNotDisplaceTheFirstReminder(logger as Test.Logger) as Boolean {
     var config = new WaterConfig();
-    var civil = Gregorian.moment({
+    var localClock = Gregorian.moment({
         :year => 2026, :month => 11, :day => 23, :hour => 7, :minute => 58, :second => 0
     });
-    var now = Schedule.localMoment(civil.value(), Time.now());
+    var now = Schedule.momentFromLocalClock(localClock.value(), Time.now());
     if (now == null) {
         logger.error("No se pudo convertir la hora local");
         return false;

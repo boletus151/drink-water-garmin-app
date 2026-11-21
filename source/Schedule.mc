@@ -11,16 +11,19 @@ module Schedule {
     const MAX_DELAY_SECONDS = 60;
     const CHECKPOINT_SECONDS = 3600;
 
+    function earliestAllowedTime(earliest as Time.Moment, lastEvent as Time.Moment?) as Time.Moment {
+        if (lastEvent != null && earliest.value() < lastEvent.value() + MINIMUM_SECONDS) {
+            return lastEvent.add(new Time.Duration(MINIMUM_SECONDS));
+        }
+        return earliest;
+    }
+
     function debugEventTime(config as WaterConfig, opened as Time.Moment,
                             lastEvent as Time.Moment?, debug as Boolean) as Time.Moment? {
         if (!debug || !config.enabled || config.error != null) {
             return null;
         }
-        var target = opened.add(new Time.Duration(60));
-        if (lastEvent != null && target.value() < lastEvent.value() + MINIMUM_SECONDS) {
-            target = lastEvent.add(new Time.Duration(MINIMUM_SECONDS));
-        }
-        return target;
+        return earliestAllowedTime(opened.add(new Time.Duration(60)), lastEvent);
     }
 
     function debugDueKey(config as WaterConfig, now as Time.Moment,
@@ -29,7 +32,7 @@ module Schedule {
             now.value() < target || now.value() - target > MAX_DELAY_SECONDS) {
             return null;
         }
-        return civilSeconds(Gregorian.info(now, Time.FORMAT_SHORT));
+        return localClockSeconds(Gregorian.info(now, Time.FORMAT_SHORT));
     }
 
     function pendingDebug(config as WaterConfig, earliest as Time.Moment) as Time.Moment? {
@@ -59,22 +62,24 @@ module Schedule {
         return slot <= config.endMinute ? slot : null;
     }
 
-    // Gregorian.moment uses UTC. Convert a civil date without assuming a 24-hour local day.
-    function civilSeconds(info as Gregorian.Info) as Number {
+    // Encode local calendar fields as UTC for arithmetic; this is not a real timestamp.
+    function localClockSeconds(info as Gregorian.Info) as Number {
         return Gregorian.moment({
             :year => info.year, :month => info.month as Number, :day => info.day,
             :hour => info.hour, :minute => info.min, :second => info.sec
         }).value();
     }
 
-    function localMoment(civil as Number, reference as Time.Moment) as Time.Moment? {
-        var candidate = civil - (civilSeconds(Gregorian.info(reference, Time.FORMAT_SHORT)) - reference.value());
+    function momentFromLocalClock(localClock as Number, reference as Time.Moment) as Time.Moment? {
+        var referenceClock = localClockSeconds(Gregorian.info(reference, Time.FORMAT_SHORT));
+        var offset = referenceClock - reference.value();
+        var candidate = localClock - offset;
         for (var i = 0; i < 3; i += 1) {
-            var actual = civilSeconds(Gregorian.info(new Time.Moment(candidate), Time.FORMAT_SHORT));
-            if (actual == civil) {
+            var actualClock = localClockSeconds(Gregorian.info(new Time.Moment(candidate), Time.FORMAT_SHORT));
+            if (actualClock == localClock) {
                 return new Time.Moment(candidate);
             }
-            candidate += civil - actual;
+            candidate += localClock - actualClock;
         }
         // A civil time skipped by a daylight-saving change has no corresponding instant.
         return null;
@@ -82,15 +87,16 @@ module Schedule {
 
     function next(config as WaterConfig, earliest as Time.Moment) as Time.Moment? {
         var info = Gregorian.info(earliest, Time.FORMAT_SHORT);
-        var civil = civilSeconds(info);
-        var midnight = civil - info.hour * 3600 - info.min * 60 - info.sec;
+        var localClock = localClockSeconds(info);
+        var localMidnight = localClock - info.hour * 3600 - info.min * 60 - info.sec;
+        // Step through calendar dates, not elapsed 24-hour periods.
         for (var day = 0; day <= 7; day += 1) {
-            var date = Gregorian.utcInfo(new Time.Moment(midnight + day * 86400), Time.FORMAT_SHORT);
+            var date = Gregorian.utcInfo(new Time.Moment(localMidnight + day * 86400), Time.FORMAT_SHORT);
             var seconds = day == 0 ? info.hour * 3600 + info.min * 60 + info.sec : 0;
             var weekday = date.day_of_week as Number;
             var slot = minuteOnDay(config, weekday, seconds);
             while (slot != null) {
-                var result = localMoment(midnight + day * 86400 + slot * 60, earliest);
+                var result = momentFromLocalClock(localMidnight + day * 86400 + slot * 60, earliest);
                 if (result != null && result.value() >= earliest.value()) {
                     return result;
                 }
@@ -116,7 +122,19 @@ module Schedule {
         if (remainder > MAX_DELAY_SECONDS) {
             return null;
         }
-        return civilSeconds(info) - remainder;
+        return localClockSeconds(info) - remainder;
+    }
+
+    function respectMinimumSpacing(config as WaterConfig, reminder as Time.Moment,
+                                   allowed as Time.Moment) as Time.Moment? {
+        if (reminder.value() >= allowed.value()) {
+            return reminder;
+        }
+        if (allowed.value() - reminder.value() <= MAX_DELAY_SECONDS &&
+            dueKey(config, allowed) != null) {
+            return allowed;
+        }
+        return next(config, allowed);
     }
 
     function eventTime(config as WaterConfig, earliest as Time.Moment,
@@ -125,20 +143,10 @@ module Schedule {
         if (nextTime == null) {
             return null;
         }
-        var allowed = earliest;
-        if (lastEvent != null && allowed.value() < lastEvent.value() + MINIMUM_SECONDS) {
-            allowed = lastEvent.add(new Time.Duration(MINIMUM_SECONDS));
-        }
-        if (nextTime.value() < allowed.value()) {
-            if (allowed.value() - nextTime.value() <= MAX_DELAY_SECONDS &&
-                dueKey(config, allowed) != null) {
-                nextTime = allowed;
-            } else {
-                nextTime = next(config, allowed);
-                if (nextTime == null) {
-                    return null;
-                }
-            }
+        var allowed = earliestAllowedTime(earliest, lastEvent);
+        nextTime = respectMinimumSpacing(config, nextTime, allowed);
+        if (nextTime == null) {
+            return null;
         }
         // Do not let a checkpoint consume the five-minute window preceding a reminder.
         var checkpoint = allowed.value() + CHECKPOINT_SECONDS;
