@@ -25,7 +25,7 @@ class WaterConfig {
         if (goalMl < 50 || goalMl > 10000) {
             return text(Rez.Strings.InvalidGoal);
         }
-        if (intervalMinutes < 5 || intervalMinutes > 1440) {
+        if (intervalMinutes < Config.MIN_INTERVAL || intervalMinutes > Config.MAX_INTERVAL) {
             return text(Rez.Strings.InvalidInterval);
         }
         if (startMinute < 0 || endMinute > 1439 || startMinute >= endMinute) {
@@ -42,6 +42,9 @@ class WaterConfig {
 
 (:background)
 module Config {
+    const MIN_INTERVAL = 15;
+    const MAX_INTERVAL = 60;
+
     function read() as WaterConfig {
         var result = new WaterConfig();
         var version = Properties.getValue("schemaVersion");

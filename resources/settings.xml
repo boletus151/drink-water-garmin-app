@@ -2,7 +2,7 @@
     <settings>
         <setting propertyKey="@Properties.enabled" title="@Strings.AppName"><settingConfig type="boolean"/></setting>
         <setting propertyKey="@Properties.goalMl" title="@Strings.Goal"><settingConfig type="numeric" min="50" max="10000"/></setting>
-        <setting propertyKey="@Properties.intervalMinutes" title="@Strings.Interval"><settingConfig type="numeric" min="5" max="1440"/></setting>
+        <setting propertyKey="@Properties.intervalMinutes" title="@Strings.Interval"><settingConfig type="numeric" min="15" max="60"/></setting>
         <setting propertyKey="@Properties.startHour" title="@Strings.StartHour"><settingConfig type="numeric" min="0" max="23"/></setting>
         <setting propertyKey="@Properties.startMinute" title="@Strings.StartMinute"><settingConfig type="numeric" min="0" max="59"/></setting>
         <setting propertyKey="@Properties.endHour" title="@Strings.EndHour"><settingConfig type="numeric" min="0" max="23"/></setting>

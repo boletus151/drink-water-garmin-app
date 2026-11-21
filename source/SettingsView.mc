@@ -79,6 +79,13 @@ class SettingsDelegate extends WatchUi.Menu2InputDelegate {
             waterApp().save(key, !value);
             _menu.refresh();
         } else if (value instanceof Number) {
+            var label = item.getLabel();
+            var title = label instanceof String ? label : text(Rez.Strings.Settings);
+            if (key.equals("intervalMinutes")) {
+                var intervalEditor = new IntervalView(title, value);
+                WatchUi.pushView(intervalEditor, new NumberDelegate(intervalEditor), WatchUi.SLIDE_UP);
+                return;
+            }
             var minimum = 0;
             var maximum = 59;
             var step = 1;
@@ -86,14 +93,10 @@ class SettingsDelegate extends WatchUi.Menu2InputDelegate {
                 minimum = 50;
                 maximum = 10000;
                 step = 50;
-            } else if (key.equals("intervalMinutes")) {
-                minimum = 5;
-                maximum = 1440;
             } else if (key.equals("startHour") || key.equals("endHour")) {
                 maximum = 23;
             }
-            var label = item.getLabel();
-            var editor = new NumberView(key, label instanceof String ? label : text(Rez.Strings.Settings),
+            var editor = new NumberView(key, title,
                 value, minimum, maximum, step);
             WatchUi.pushView(editor, new NumberDelegate(editor), WatchUi.SLIDE_UP);
         }
@@ -126,6 +129,14 @@ class NumberView extends WatchUi.View {
         WatchUi.requestUpdate();
     }
 
+    function confirm() as Boolean {
+        return true;
+    }
+
+    function goBack() as Boolean {
+        return true;
+    }
+
     function onUpdate(dc as Graphics.Dc) as Void {
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_BLACK);
         dc.clear();
@@ -134,6 +145,79 @@ class NumberView extends WatchUi.View {
         dc.drawText(center, 87, Graphics.FONT_NUMBER_MILD, value.toString(), Graphics.TEXT_JUSTIFY_CENTER);
         dc.drawText(center, 162, Graphics.FONT_XTINY, text(Rez.Strings.EditHint), Graphics.TEXT_JUSTIFY_CENTER);
         dc.drawText(center, 185, Graphics.FONT_XTINY, text(Rez.Strings.SaveHint), Graphics.TEXT_JUSTIFY_CENTER);
+    }
+}
+
+class IntervalView extends NumberView {
+    var activeDigit as Number = 0;
+    var error as String? = null;
+
+    function initialize(label as String, initial as Number) {
+        NumberView.initialize("intervalMinutes", label, initial,
+            Config.MIN_INTERVAL, Config.MAX_INTERVAL, 1);
+        if (initial < minimum || initial > maximum) {
+            value = initial < minimum ? minimum : maximum;
+            error = text(Rez.Strings.PreviousIntervalInvalid);
+        }
+    }
+
+    function change(direction as Number) as Void {
+        var place = activeDigit == 0 ? 10 : 1;
+        var oldDigit = (value / place).toNumber() % 10;
+        var digit = (oldDigit + direction + 10) % 10;
+        value += (digit - oldDigit) * place;
+        error = null;
+        WatchUi.requestUpdate();
+    }
+
+    function confirm() as Boolean {
+        if (activeDigit == 0) {
+            activeDigit = 1;
+            error = null;
+            WatchUi.requestUpdate();
+            return false;
+        }
+        if (value < minimum || value > maximum) {
+            error = text(Rez.Strings.InvalidInterval);
+            WatchUi.requestUpdate();
+            return false;
+        }
+        return true;
+    }
+
+    function goBack() as Boolean {
+        if (activeDigit == 1) {
+            activeDigit = 0;
+            error = null;
+            WatchUi.requestUpdate();
+            return false;
+        }
+        return true;
+    }
+
+    function onUpdate(dc as Graphics.Dc) as Void {
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_BLACK);
+        dc.clear();
+        var center = dc.getWidth() / 2;
+        dc.drawText(center, 42, Graphics.FONT_SMALL, title, Graphics.TEXT_JUSTIFY_CENTER);
+        for (var i = 0; i < 2; i += 1) {
+            var x = center + (i == 0 ? -22 : 22);
+            var selected = i == activeDigit;
+            dc.setColor(selected ? Graphics.COLOR_WHITE : Graphics.COLOR_BLACK, Graphics.COLOR_BLACK);
+            dc.fillRectangle(x - 20, 84, 40, dc.getFontHeight(Graphics.FONT_NUMBER_MILD) + 6);
+            dc.setColor(selected ? Graphics.COLOR_BLACK : Graphics.COLOR_WHITE,
+                selected ? Graphics.COLOR_WHITE : Graphics.COLOR_BLACK);
+            var digit = i == 0 ? (value / 10).toNumber() : value % 10;
+            dc.drawText(x, 87, Graphics.FONT_NUMBER_MILD, digit.toString(), Graphics.TEXT_JUSTIFY_CENTER);
+        }
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_BLACK);
+        var message = error;
+        dc.drawText(center, 145, Graphics.FONT_XTINY,
+            message != null ? message : text(Rez.Strings.IntervalRange), Graphics.TEXT_JUSTIFY_CENTER);
+        dc.drawText(center, 174, Graphics.FONT_XTINY, text(Rez.Strings.EditHint), Graphics.TEXT_JUSTIFY_CENTER);
+        dc.drawText(center, 195, Graphics.FONT_XTINY,
+            text(activeDigit == 0 ? Rez.Strings.NextDigitHint : Rez.Strings.SaveHint),
+            Graphics.TEXT_JUSTIFY_CENTER);
     }
 }
 
@@ -156,13 +240,18 @@ class NumberDelegate extends WatchUi.BehaviorDelegate {
     }
 
     function onSelect() as Boolean {
+        if (!_view.confirm()) {
+            return true;
+        }
         waterApp().save(_view.key, _view.value);
         WatchUi.popView(WatchUi.SLIDE_DOWN);
         return true;
     }
 
     function onBack() as Boolean {
-        WatchUi.popView(WatchUi.SLIDE_DOWN);
+        if (_view.goBack()) {
+            WatchUi.popView(WatchUi.SLIDE_DOWN);
+        }
         return true;
     }
 }

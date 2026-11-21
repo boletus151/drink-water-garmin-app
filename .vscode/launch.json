@@ -1,0 +1,12 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Bebe agua (Forerunner 645)",
+            "type": "monkeyc",
+            "request": "launch",
+            "device": "fr645",
+            "stopAtLaunch": true
+        }
+    ]
+}

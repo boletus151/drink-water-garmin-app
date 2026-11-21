@@ -23,12 +23,15 @@
     <string id="MenuHint">UP: ajustes</string>
     <string id="EditHint">UP/DOWN: cambiar</string>
     <string id="SaveHint">START: guardar</string>
+    <string id="NextDigitHint">START: siguiente</string>
+    <string id="IntervalRange">15 - 60 min</string>
+    <string id="PreviousIntervalInvalid">Valor anterior no valido</string>
     <string id="Next">Proximo</string>
     <string id="NoNext">Sin avisos pendientes</string>
     <string id="InvalidSettings" scope="background">Revisa los ajustes</string>
     <string id="InvalidHours" scope="background">Inicio debe ser menor que fin</string>
     <string id="NoDays" scope="background">Selecciona algun dia</string>
-    <string id="InvalidInterval" scope="background">Intervalo: 5 a 1440 min</string>
+    <string id="InvalidInterval" scope="background">Intervalo: 15 a 60 min</string>
     <string id="InvalidGoal" scope="background">Objetivo: 50 a 10000 ml</string>
     <string id="UnsupportedVersion" scope="background">Version de ajustes no compatible</string>
     <string id="ScheduleError">Error al programar avisos</string>

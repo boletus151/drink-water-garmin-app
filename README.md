@@ -1,11 +1,11 @@
 # Bebe agua
 
-Aplicacion Connect IQ para **Forerunner 645 (sin Music)**, escrita en Monkey C con el SDK oficial de Garmin. Version inicial: **0.1.0**.
+Aplicacion Connect IQ para **Forerunner 645 (sin Music)**, escrita en Monkey C con el SDK oficial de Garmin. Version: **0.2.0**.
 
 ## Funciones
 
 - Objetivo diario configurable: 50 a 10000 ml, informativo; no registra consumo.
-- Intervalo configurable: 5 a 1440 minutos.
+- Intervalo configurable: 15 a 60 minutos, editado cifra a cifra en el reloj.
 - Horario del mismo dia, con inicio anterior al fin.
 - Seleccion independiente de los siete dias de la semana.
 - Activacion/desactivacion persistente sin perder los ajustes.
@@ -38,6 +38,19 @@ Se usa la hora local del reloj. Se omiten horas inexistentes al cambiar al horar
 
 Horas y minutos se editan por separado. Un horario invalido o ningun dia seleccionado muestra un error en la pantalla principal y suspende la programacion hasta corregirlo. Cambiar varios campos puede dejar un estado temporalmente invalido: termina de editar ambos extremos antes de salir.
 
+### Editor del intervalo
+
+Las dos cifras se muestran en la misma pantalla. La cifra seleccionada aparece resaltada:
+
+1. UP/DOWN cambia las decenas entre 0 y 9; START confirma y selecciona las unidades.
+2. UP/DOWN cambia las unidades; START guarda el numero completo.
+3. Solo se guardan valores entre **15 y 60**. Un valor fuera de rango muestra un error y permite corregirlo.
+4. BACK desde las unidades vuelve a las decenas; BACK desde las decenas cancela sin guardar.
+
+Por ejemplo, para 15 minutos selecciona primero **1**, pulsa START, selecciona **5** y pulsa START de nuevo. Los otros ajustes, incluido el objetivo diario, conservan su editor anterior.
+
+Al actualizar, se mantienen las propiedades existentes. Si un intervalo antiguo esta fuera de 15 a 60, los avisos se suspenden y la pantalla principal muestra un error. Al abrir el editor se propone el limite mas cercano con un aviso; no se cambia el valor guardado hasta confirmar ambas cifras.
+
 ## Desarrollo y compilacion
 
 Requisitos:
@@ -60,6 +73,21 @@ make build SDK_HOME="/ruta/al/sdk" JAVA_HOME="/ruta/al/jdk/Contents/Home" \
 
 La compilacion usa comprobacion estricta de tipos (`-l 3`) y avisos del compilador. El resultado instalable es [bin/drink-water.prg](bin/drink-water.prg).
 
+### Depurar con VS Code
+
+1. Abre la carpeta **drink-water_v1** como carpeta de trabajo de VS Code, no solo la carpeta Garmin que la contiene.
+2. Selecciona un SDK activo en SDK Manager y configura en los ajustes personales de la extension Monkey C:
+   - `monkeyC.javaPath`: carpeta raiz del JDK; en este entorno, `~/.local/share/drink-water-tools/java/Contents/Home` (usa la ruta absoluta en VS Code).
+   - `monkeyC.developerKeyPath`: ruta absoluta a la clave DER privada, fuera del repositorio.
+   - `monkeyC.typeCheckLevel`: `Strict`.
+3. En **Ejecutar y depurar**, elige **Depurar Bebe agua (Forerunner 645)** y pulsa **F5**.
+4. La extension oficial compila el proyecto y lo ejecuta en el simulador del 645. La configuracion [launch.json](.vscode/launch.json) detiene la ejecucion al iniciar.
+5. Coloca puntos de interrupcion en los archivos Monkey C, continua con F5 y usa los botones del reloj simulado para reproducir el comportamiento.
+
+Para el editor del intervalo, coloca puntos de interrupcion en `IntervalView.change` o `IntervalView.confirm`, en [SettingsView.mc](source/SettingsView.mc).
+
+No ejecutes al mismo tiempo `run-simulator.sh` y una sesion de depuracion sobre el mismo simulador. Las rutas personales y la clave no forman parte de `launch.json`; `.vscode/settings.json` permanece excluido de Git.
+
 Para ejecutar pruebas, abre primero el simulador oficial incluido en el SDK, acepta sus permisos de macOS si los solicita y ejecuta:
 
 ```sh
@@ -73,12 +101,14 @@ En macOS, `monkeydo` de los SDK recientes puede devolver codigo 1 incluso con to
 Para ejecutar la aplicacion en el simulador abierto:
 
 ```sh
-export JAVA_HOME="$HOME/.local/share/drink-water-tools/java/Contents/Home"
-export PATH="$JAVA_HOME/bin:$PATH"
-"$HOME/.local/share/drink-water-tools/sdk/bin/monkeydo" bin/drink-water.prg fr645
+./run-simulator.sh
 ```
 
-Para probar el servicio, configura un horario cercano y un intervalo de cinco minutos, sal de la aplicacion y utiliza los controles de eventos en segundo plano del simulador. Verifica tambien que descartar el dialogo no impide los siguientes avisos.
+El [script](run-simulator.sh) configura Java mediante el Makefile y carga el ejecutable existente; no abre el simulador ni recompila. Deja la terminal abierta mientras pruebas. Si has cambiado el codigo, ejecuta `make build` antes.
+
+Tambien funciona desde otra carpeta usando su ruta, por ejemplo `./drink-water_v1/run-simulator.sh` desde la carpeta Garmin. Puedes pasar las mismas rutas alternativas que al Makefile: `./run-simulator.sh SDK_HOME="/ruta/al/sdk" JAVA_HOME="/ruta/al/jdk/Contents/Home"`.
+
+Para probar el servicio, configura un horario cercano y un intervalo de 15 minutos, sal de la aplicacion y utiliza los controles de eventos en segundo plano del simulador. Verifica tambien que descartar el dialogo no impide los siguientes avisos.
 
 ## Instalacion en el reloj
 
@@ -123,9 +153,10 @@ No hay servidor, analitica ni recogida de datos de consumo. Un aviso no confirma
 ## Validacion de esta entrega
 
 - Compilacion estricta sin avisos con SDK oficial **9.3.0**, perfil **fr645 (3.1.6)**.
-- **9 pruebas aprobadas**, sin fallos ni errores, en el simulador oficial.
-- Verificados en el simulador: pantalla sin recortes, interruptor, apertura de ajustes, edicion y guardado del objetivo e intervalo.
-- Observado un aviso autonomo a la hora prevista con la aplicacion cerrada: "Background Process Wake / Recuerda beber agua"; descartado correctamente.
+- **12 pruebas aprobadas**, sin fallos ni errores, incluidas edicion por cifras, rechazo de 14/61 minutos y cancelacion sin guardar.
+- Verificados en la entrega anterior: pantalla sin recortes, interruptor, apertura de ajustes, edicion y guardado del objetivo e intervalo.
+- Observado en la entrega anterior un aviso autonomo a la hora prevista con la aplicacion cerrada: "Background Process Wake / Recuerda beber agua"; descartado correctamente.
+- En esta mejora se comprobo el aviso de intervalo antiguo fuera de rango. La comprobacion visual del resaltado y los botones del nuevo editor queda disponible para prueba manual.
 - Generados el ejecutable USB y el paquete Connect IQ.
 
 Pendiente de validar en un Forerunner 645 fisico: comportamiento del firmware durante actividades y No molestar, reinicios, cambios de hora y consumo real de bateria. No se ha instalado ni publicado automaticamente.

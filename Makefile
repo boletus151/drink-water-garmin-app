@@ -4,11 +4,17 @@ DEVELOPER_KEY ?= $(HOME)/.local/share/drink-water-tools/developer_key.der
 export JAVA_HOME
 export PATH := $(JAVA_HOME)/bin:$(PATH)
 
-.PHONY: build test-build test package
+.PHONY: build run test-build test package
 
 build:
 	mkdir -p bin
 	"$(SDK_HOME)/bin/monkeyc" -f monkey.jungle -d fr645 -o bin/drink-water.prg -y "$(DEVELOPER_KEY)" -l 3 -w
+
+run:
+	@if [ ! -f bin/drink-water.prg ]; then \
+		echo "Falta bin/drink-water.prg. Ejecuta make build primero." >&2; exit 1; \
+	fi
+	"$(SDK_HOME)/bin/monkeydo" bin/drink-water.prg fr645
 
 test-build:
 	mkdir -p bin
