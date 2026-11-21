@@ -8,4 +8,5 @@ module Theme {
     const MENU_PADDING = 10;
     const MENU_FOCUS_PADDING = 3;
     const STACK_GAP = 6;
+    const ROOT_STACK_GAP = 2;
 }

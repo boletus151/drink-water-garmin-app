@@ -23,12 +23,14 @@ class WaterView extends RootView {
         var config = Config.readAt(now);
         var valid = WaterFrame.update(self, config, waterApp().scheduleError);
         show("goal", valid);
-        show("consumed", valid);
+        show("consumed", false);
         show("schedule", valid);
         show("next", valid);
         if (valid) {
-            label("goal").setText(text(Rez.Strings.GoalLabel) + ": " + config.goalMl.toString() + " ml");
-            label("consumed").setText(text(Rez.Strings.ConsumedLabel) + ": " + config.consumedMl.toString() + " ml");
+            // label("goal").setText(text(Rez.Strings.GoalLabel) + ": " + config.goalMl.toString() + " ml");
+            // label("consumed").setText(text(Rez.Strings.ConsumedLabel) + ": " + config.consumedMl.toString() + " ml");
+            label("goal").setText(config.consumedMl.toString() +" / " + config.goalMl.toString() + " ml");
+
             label("schedule").setText(clockText(config.startMinute) + " - " + clockText(config.endMinute) +
                 " / " + config.intervalMinutes.toString() + " min");
             var nextTime = _water.nextReminder(config);

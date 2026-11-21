@@ -62,7 +62,7 @@ function verticalLayoutCentersVisibleRowsWithFixedSpacing(logger as Test.Logger)
     var dc = LayoutDrawCounter.buffer(240).getDc();
     var view = new LayoutView();
     view.setLayout(Rez.Layouts.ReminderLayout(dc));
-    view.setVerticalLayout([], [["content"], ["remaining"]], [], 0);
+    view.setVerticalLayout([], [["content"], ["remaining"]], [], 0, Theme.STACK_GAP);
     view.drawLayout(dc);
     var first = view.drawable("content") as StackText;
     var second = view.drawable("remaining") as StackText;
@@ -111,6 +111,13 @@ function xmlLayoutsRenderScreensAndKeepNextOutOfTheReminder(logger as Test.Logge
     var main = new WaterView();
     main.onLayout(dc);
     main.onUpdate(dc);
+    main.label("title").setText("Bebe Agua\nApp");
+    main.drawLayout(dc);
+    var title = main.drawable("title") as StackText;
+    var goal = main.drawable("goal") as StackText;
+    Test.assert(title.measuredHeight > Graphics.getFontHeight(Graphics.FONT_SMALL));
+    Test.assert(goal.locY - (goal.measuredHeight / 2).toNumber() >=
+        title.locY + (title.measuredHeight / 2).toNumber() + Theme.ROOT_STACK_GAP);
     Test.assert(main.findDrawableById("status") == null);
     Test.assert(main.findDrawableById("next") != null);
     Test.assert(main.findDrawableById("goal") != null);

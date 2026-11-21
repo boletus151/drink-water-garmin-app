@@ -16,7 +16,7 @@ class SettingsTitle extends WatchUi.Drawable {
     function draw(dc as Graphics.Dc) as Void {
         if (_view.updateLayoutSize(dc)) {
             _view.setLayout(_daysOnly ? Rez.Layouts.DaysMenuHeaderLayout(dc) : Rez.Layouts.SettingsMenuHeaderLayout(dc));
-            _view.setVerticalLayout([], [["title"]], [], 0);
+            _view.setVerticalLayout([], [["title"]], [], 0, Theme.STACK_GAP);
         }
         _view.show("background", !intakeFeedback);
         if (intakeFeedback) {

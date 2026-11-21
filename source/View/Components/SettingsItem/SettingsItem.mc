@@ -18,7 +18,8 @@ class SettingsItem extends WatchUi.CustomMenuItem {
         var subLabel = getSubLabel();
         if (_view.updateLayoutSize(dc)) {
             _view.setLayout(Rez.Layouts.MenuItemLayout(dc));
-            _view.setVerticalLayout([], [["label"], ["subLabel"], ["navigation"]], [], Theme.MENU_PADDING);
+            _view.setVerticalLayout([], [["label"], ["subLabel"], ["navigation"]], [],
+                Theme.MENU_PADDING, Theme.STACK_GAP);
         }
         var hasSubLabel = subLabel != null;
         _view.show("background", !intakeFeedback);

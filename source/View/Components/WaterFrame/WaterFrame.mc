@@ -20,7 +20,7 @@ class WaterFrame {
         items.addAll(Rez.Layouts.WaterFrameLayout(dc));
         view.setLayout(items);
         view.setVerticalLayout([["title"]], content, [["toggleHint"], ["menuHint"]],
-            (dc.getHeight() / 26).toNumber());
+            (dc.getHeight() / 48).toNumber(), Theme.ROOT_STACK_GAP);
     }
 
     static function update(view as LayoutView, config as WaterConfig, scheduleError as Boolean) as Boolean {

@@ -1,7 +1,7 @@
 <layout id="WaterFrameLayout">
     <!-- Header: shared application title. -->
     <label id="title" class="StackText" font="Graphics.FONT_SMALL"
-           text="@Strings.AppName" color="0x55FFFF"
+           text="@Strings.AppTitle" color="0x55FFFF"
            justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
 
     <!-- Content: error messages, shown only for invalid settings or scheduling failures. -->
