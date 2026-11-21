@@ -7,9 +7,8 @@
     <string id="Goal">Objetivo diario</string>
     <string id="Interval">Intervalo (min)</string>
     <string id="StartHour">Hora inicial</string>
-    <string id="StartMinute">Minuto inicial</string>
     <string id="EndHour">Hora final</string>
-    <string id="EndMinute">Minuto final</string>
+    <string id="TimeMinutesHint">Minutos desde 00:00 (09:30 = 570)</string>
     <string id="Days">Dias activos</string>
     <string id="Sunday">Domingo</string>
     <string id="Monday">Lunes</string>
@@ -25,7 +24,10 @@
     <string id="SaveHint">START: guardar</string>
     <string id="NextDigitHint">START: siguiente</string>
     <string id="IntervalRange">15 - 60 min</string>
-    <string id="PreviousIntervalInvalid">Valor anterior no valido</string>
+    <string id="TimeRange">00:00 - 23:59</string>
+    <string id="InvalidHourValue">Hora: 00 a 23</string>
+    <string id="InvalidMinuteValue">Minutos: 00 a 59</string>
+    <string id="PreviousValueInvalid">Valor anterior no valido</string>
     <string id="Next">Proximo</string>
     <string id="NoNext">Sin avisos pendientes</string>
     <string id="InvalidSettings" scope="background">Revisa los ajustes</string>

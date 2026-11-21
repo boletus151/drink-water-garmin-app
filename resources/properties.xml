@@ -1,13 +1,12 @@
 <resources>
     <properties>
-        <property id="schemaVersion" type="number">1</property>
+        <property id="schemaVersion" type="number">3</property>
         <property id="enabled" type="boolean">true</property>
         <property id="goalMl" type="number">2000</property>
         <property id="intervalMinutes" type="number">60</property>
-        <property id="startHour" type="number">9</property>
-        <property id="startMinute" type="number">0</property>
-        <property id="endHour" type="number">21</property>
-        <property id="endMinute" type="number">0</property>
+        <property id="startTime" type="number">540</property>
+        <property id="endTime" type="number">1260</property>
+        <!-- day1 is Monday; day7 is Sunday. -->
         <property id="day1" type="boolean">true</property>
         <property id="day2" type="boolean">true</property>
         <property id="day3" type="boolean">true</property>

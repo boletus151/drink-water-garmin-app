@@ -1,13 +1,13 @@
 # Bebe agua
 
-Aplicacion Connect IQ para **Forerunner 645 (sin Music)**, escrita en Monkey C con el SDK oficial de Garmin. Version: **0.2.0**.
+Aplicacion Connect IQ para **Forerunner 645 (sin Music)**, escrita en Monkey C con el SDK oficial de Garmin. Version: **0.5.0**.
 
 ## Funciones
 
 - Objetivo diario configurable: 50 a 10000 ml, informativo; no registra consumo.
 - Intervalo configurable: 15 a 60 minutos, editado cifra a cifra en el reloj.
-- Horario del mismo dia, con inicio anterior al fin.
-- Seleccion independiente de los siete dias de la semana.
+- Horario del mismo dia, con inicio anterior al fin; cada extremo se edita en una pantalla HH:MM, cifra a cifra.
+- Seleccion independiente de los siete dias de la semana: `day1` es lunes, `day2` martes, hasta `day7` domingo.
 - Activacion/desactivacion persistente sin perder los ajustes.
 - Configuracion desde el reloj y desde los ajustes de Connect IQ en el movil.
 - Avisos autonomos en segundo plano, sin conexion al telefono.
@@ -36,7 +36,7 @@ Se usa la hora local del reloj. Se omiten horas inexistentes al cambiar al horar
 6. En "Dias activos", START cambia el estado del dia seleccionado.
 7. Sal con BACK para volver a la esfera. Los recordatorios continuan.
 
-Horas y minutos se editan por separado. Un horario invalido o ningun dia seleccionado muestra un error en la pantalla principal y suspende la programacion hasta corregirlo. Cambiar varios campos puede dejar un estado temporalmente invalido: termina de editar ambos extremos antes de salir.
+En el reloj, hora y minutos se editan juntos en "Hora inicial" y "Hora final". Un horario invalido o ningun dia seleccionado muestra un error en la pantalla principal y suspende la programacion hasta corregirlo. Cambiar ambos extremos puede dejar un estado temporalmente invalido: termina de editarlos antes de salir.
 
 ### Editor del intervalo
 
@@ -47,9 +47,25 @@ Las dos cifras se muestran en la misma pantalla. La cifra seleccionada aparece r
 3. Solo se guardan valores entre **15 y 60**. Un valor fuera de rango muestra un error y permite corregirlo.
 4. BACK desde las unidades vuelve a las decenas; BACK desde las decenas cancela sin guardar.
 
-Por ejemplo, para 15 minutos selecciona primero **1**, pulsa START, selecciona **5** y pulsa START de nuevo. Los otros ajustes, incluido el objetivo diario, conservan su editor anterior.
+Por ejemplo, para 15 minutos selecciona primero **1**, pulsa START, selecciona **5** y pulsa START de nuevo. El objetivo diario conserva su editor anterior.
 
 Al actualizar, se mantienen las propiedades existentes. Si un intervalo antiguo esta fuera de 15 a 60, los avisos se suspenden y la pantalla principal muestra un error. Al abrir el editor se propone el limite mas cercano con un aviso; no se cambia el valor guardado hasta confirmar ambas cifras.
+
+### Editores de hora inicial y final
+
+**Hora inicial** y **Hora final** muestran la hora completa en formato **HH:MM** (por ejemplo, **09:30**), tanto en el menu como en el editor.
+
+- Las horas admiten **00 a 23** y los minutos **00 a 59**.
+- UP/DOWN cambia la cifra resaltada; START avanza por las cuatro cifras y, al confirmar la ultima, guarda hora y minutos juntos.
+- Solo se pueden seleccionar cifras validas: decenas de hora 0-2, unidades de hora 0-3 si las decenas son 2 (0-9 en otro caso), decenas de minutos 0-5 y unidades de minutos 0-9. UP/DOWN recorre esos rangos de forma circular.
+- Si al cambiar las decenas de hora a 2 las unidades superan 3, se ponen a 0; por ejemplo, 19:30 pasa a 20:30.
+- BACK vuelve a la cifra anterior; desde la primera cancela sin guardar ninguna parte de la hora.
+
+La regla de inicio anterior al fin no cambia: si al editar los extremos el horario queda temporalmente invalido, los avisos se suspenden hasta corregirlo.
+
+Cada extremo se guarda como un unico numero de minutos desde medianoche: `startTime` y `endTime`, entre 0 y 1439. Por ejemplo, 09:30 se guarda como 570. En el reloj siempre se muestra y edita HH:MM. En los ajustes de Connect IQ del movil se introduce ese numero de minutos; el SDK no ofrece un tipo de ajuste de hora HH:MM y se evita almacenar o parsear texto.
+
+**Al actualizar desde una version con horas y minutos separados, vuelve a configurar el inicio y el fin.** No hay migracion: las propiedades antiguas dejan de utilizarse y los valores predeterminados nuevos son 09:00 y 21:00. El objetivo, intervalo y dias activos conservan sus propiedades.
 
 ## Desarrollo y compilacion
 
@@ -84,7 +100,7 @@ La compilacion usa comprobacion estricta de tipos (`-l 3`) y avisos del compilad
 4. La extension oficial compila el proyecto y lo ejecuta en el simulador del 645. La configuracion [launch.json](.vscode/launch.json) detiene la ejecucion al iniciar.
 5. Coloca puntos de interrupcion en los archivos Monkey C, continua con F5 y usa los botones del reloj simulado para reproducir el comportamiento.
 
-Para el editor del intervalo, coloca puntos de interrupcion en `IntervalView.change` o `IntervalView.confirm`, en [SettingsView.mc](source/SettingsView.mc).
+Para los editores por cifras, coloca puntos de interrupcion en `DigitView.change` o `DigitView.confirm`, en [SettingsView.mc](source/SettingsView.mc). `TimeView.save` guarda la hora completa.
 
 No ejecutes al mismo tiempo `run-simulator.sh` y una sesion de depuracion sobre el mismo simulador. Las rutas personales y la clave no forman parte de `launch.json`; `.vscode/settings.json` permanece excluido de Git.
 
@@ -135,7 +151,11 @@ Esto genera `bin/drink-water.iq`. La publicacion en Connect IQ Store, incluida u
 - [WaterView.mc](source/WaterView.mc) y [SettingsView.mc](source/SettingsView.mc): interfaz por botones.
 - [resources/](resources/): textos, propiedades, ajustes e icono.
 
-El esquema de ajustes esta versionado mediante `schemaVersion=1`. Los identificadores de propiedades y el ID del manifiesto deben mantenerse estables para conservar ajustes e identidad al actualizar. Si cambia el esquema, incorpora una migracion explicita en primer plano; una version desconocida se muestra como error, no se reemplaza silenciosamente.
+El esquema de ajustes actual es `schemaVersion=3`, con `startTime` y `endTime` en minutos desde medianoche. Los dias siguen el orden lunes-domingo en propiedades, menus y ajustes del movil. El calendario de Garmin usa domingo=1; [Schedule.mc](source/Schedule.mc) convierte esa numeracion al indice interno lunes=0.
+
+No hay migraciones ni copias temporales. Se aceptan los marcadores de version 1, 2 y 3, pero siempre se leen las propiedades actuales; las cuatro propiedades antiguas de hora/minuto se ignoran. Si actualizas desde una version donde `day1` era domingo, **revisa y configura de nuevo los dias activos**: los valores se conservan, pero su significado cambia.
+
+Mantener identificadores de propiedades conserva sus ajustes al actualizar; un cambio de identificador sin migracion requiere reconfigurar el ajuste, como ocurre con el horario en esta entrega. El ID del manifiesto debe mantenerse estable para conservar la identidad de la aplicacion. Una version desconocida se muestra como error, no se reemplaza silenciosamente.
 
 El Forerunner 645 admite API 3.1: el servicio no escribe en Storage ni en Properties. Devuelve el ultimo aviso con `Background.exit` y el primer plano lo persiste. Los textos usados por el servicio tienen alcance `background`.
 
@@ -153,10 +173,10 @@ No hay servidor, analitica ni recogida de datos de consumo. Un aviso no confirma
 ## Validacion de esta entrega
 
 - Compilacion estricta sin avisos con SDK oficial **9.3.0**, perfil **fr645 (3.1.6)**.
-- **12 pruebas aprobadas**, sin fallos ni errores, incluidas edicion por cifras, rechazo de 14/61 minutos y cancelacion sin guardar.
+- En una entrega anterior se aprobaron **18 pruebas**, sin fallos ni errores. Las pruebas de horario se han actualizado para la seleccion restringida de cifras y el almacenamiento en minutos desde medianoche; no se han ejecutado en esta mejora, a peticion de la usuaria.
 - Verificados en la entrega anterior: pantalla sin recortes, interruptor, apertura de ajustes, edicion y guardado del objetivo e intervalo.
 - Observado en la entrega anterior un aviso autonomo a la hora prevista con la aplicacion cerrada: "Background Process Wake / Recuerda beber agua"; descartado correctamente.
-- En esta mejora se comprobo el aviso de intervalo antiguo fuera de rango. La comprobacion visual del resaltado y los botones del nuevo editor queda disponible para prueba manual.
+- En la mejora anterior se comprobo el aviso de intervalo antiguo fuera de rango. Los horarios usan ahora dos editores HH:MM; la comprobacion visual del resaltado y los botones queda disponible para prueba manual.
 - Generados el ejecutable USB y el paquete Connect IQ.
 
 Pendiente de validar en un Forerunner 645 fisico: comportamiento del firmware durante actividades y No molestar, reinicios, cambios de hora y consumo real de bateria. No se ha instalado ni publicado automaticamente.

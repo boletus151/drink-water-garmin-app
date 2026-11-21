@@ -1,7 +1,6 @@
 import Toybox.Application;
 import Toybox.Application.Properties;
 import Toybox.Lang;
-import Toybox.System;
 
 (:background)
 function text(id as ResourceId) as String {
@@ -48,12 +47,11 @@ module Config {
     function read() as WaterConfig {
         var result = new WaterConfig();
         var version = Properties.getValue("schemaVersion");
-        if (!(version instanceof Number) || version != 1) {
+        if (!(version instanceof Number) || version < 1 || version > 3) {
             result.error = text(Rez.Strings.UnsupportedVersion);
             return result;
         }
-        var keys = ["goalMl", "intervalMinutes", "startHour", "startMinute",
-                    "endHour", "endMinute"];
+        var keys = ["goalMl", "intervalMinutes", "startTime", "endTime"];
         var values = [] as Array<Number>;
         for (var i = 0; i < keys.size(); i += 1) {
             var value = Properties.getValue(keys[i]);
@@ -71,13 +69,8 @@ module Config {
         result.enabled = enabled;
         result.goalMl = values[0];
         result.intervalMinutes = values[1];
-        if (values[2] < 0 || values[2] > 23 || values[3] < 0 || values[3] > 59 ||
-            values[4] < 0 || values[4] > 23 || values[5] < 0 || values[5] > 59) {
-            result.error = text(Rez.Strings.InvalidHours);
-            return result;
-        }
-        result.startMinute = values[2] * 60 + values[3];
-        result.endMinute = values[4] * 60 + values[5];
+        result.startMinute = values[2];
+        result.endMinute = values[3];
         for (var day = 1; day <= 7; day += 1) {
             var selected = Properties.getValue("day" + day.toString());
             if (!(selected instanceof Boolean)) {

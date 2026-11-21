@@ -10,6 +10,18 @@ function settingsMenusRefreshWithoutReadingNavigationAsProperty(logger as Test.L
     menu.refresh();
     var days = new SettingsMenu(true);
     days.refresh();
+    var names = [Rez.Strings.Monday, Rez.Strings.Tuesday, Rez.Strings.Wednesday,
+                 Rez.Strings.Thursday, Rez.Strings.Friday, Rez.Strings.Saturday, Rez.Strings.Sunday];
+    for (var i = 0; i < 7; i += 1) {
+        var item = days.getItem(i);
+        Test.assert(item != null);
+        if (item != null) {
+            var id = item.getId();
+            var label = item.getLabel();
+            Test.assert(id instanceof String && id.equals("day" + (i + 1).toString()));
+            Test.assert(label instanceof String && label.equals(text(names[i])));
+        }
+    }
     return true;
 }
 
@@ -40,7 +52,7 @@ function cadenceDoesNotDrift(logger as Test.Logger) as Boolean {
 (:test)
 function disabledAndExcludedDaysDoNotSchedule(logger as Test.Logger) as Boolean {
     var config = new WaterConfig();
-    config.days[1] = false;
+    config.days[0] = false;
     Test.assert(Schedule.minuteOnDay(config, 2, 0) == null);
     config.enabled = false;
     Test.assert(Schedule.minuteOnDay(config, 3, 0) == null);
@@ -70,7 +82,7 @@ function invalidSettingsStopScheduling(logger as Test.Logger) as Boolean {
 (:test)
 function nextSkipsToNextSelectedWeek(logger as Test.Logger) as Boolean {
     var config = new WaterConfig();
-    config.days = [false, true, false, false, false, false, false];
+    config.days = [true, false, false, false, false, false, false];
     var civil = Gregorian.moment({
         :year => 2026, :month => 11, :day => 23, :hour => 21, :minute => 1, :second => 0
     });
@@ -90,6 +102,69 @@ function nextSkipsToNextSelectedWeek(logger as Test.Logger) as Boolean {
     Test.assertEqual(info.min, 0);
     config.enabled = false;
     Test.assert(Schedule.next(config, now) == null);
+    return true;
+}
+
+(:test)
+function mondayFirstDaysMatchCalendarForSchedulingAndDueReminders(logger as Test.Logger) as Boolean {
+    for (var selected = 0; selected < 7; selected += 1) {
+        var config = new WaterConfig();
+        config.days = [false, false, false, false, false, false, false];
+        config.days[selected] = true;
+        for (var day = 0; day < 7; day += 1) {
+            var civil = Gregorian.moment({
+                :year => 2026, :month => 11, :day => 23 + day, :hour => 9, :minute => 0, :second => 0
+            });
+            var now = Schedule.localMoment(civil.value(), Time.now());
+            if (now == null) {
+                logger.error("No se pudo convertir la hora local");
+                return false;
+            }
+            var weekday = Gregorian.info(now, Time.FORMAT_SHORT).day_of_week as Number;
+            Test.assert((Schedule.minuteOnDay(config, weekday, 9 * 3600) != null) == (day == selected));
+            Test.assert((Schedule.dueKey(config, now) != null) == (day == selected));
+            if (day == selected) {
+                var nextTime = Schedule.next(config, now);
+                Test.assert(nextTime != null);
+                if (nextTime != null) {
+                    Test.assertEqual(nextTime.value(), now.value());
+                }
+            }
+        }
+    }
+    return true;
+}
+
+(:test)
+function daysAreReadDirectlyWithoutMigratingStoredSelections(logger as Test.Logger) as Boolean {
+    var previousVersion = Properties.getValue("schemaVersion");
+    var previousDays = [] as Array<Properties.ValueType>;
+    for (var i = 1; i <= 7; i += 1) {
+        previousDays.add(Properties.getValue("day" + i.toString()));
+    }
+    var selected = [true, false, true, false, false, true, false] as Array<Boolean>;
+    for (var day = 0; day < 7; day += 1) {
+        Properties.setValue("day" + (day + 1).toString(), selected[day]);
+    }
+    var correct = true;
+    for (var version = 1; version <= 3; version += 1) {
+        Properties.setValue("schemaVersion", version);
+        var config = Config.read();
+        var storedVersion = Properties.getValue("schemaVersion");
+        correct = correct && storedVersion instanceof Number && storedVersion == version;
+        for (var day = 0; day < 7; day += 1) {
+            var stored = Properties.getValue("day" + (day + 1).toString());
+            correct = correct && config.days[day] == selected[day] &&
+                stored instanceof Boolean && stored == selected[day];
+        }
+    }
+    Properties.setValue("schemaVersion", 4);
+    correct = correct && Config.read().error != null;
+    Properties.setValue("schemaVersion", previousVersion);
+    for (var i = 0; i < 7; i += 1) {
+        Properties.setValue("day" + (i + 1).toString(), previousDays[i]);
+    }
+    Test.assert(correct);
     return true;
 }
 
@@ -187,6 +262,156 @@ function intervalEditorDoesNotPersistLegacyValuesOrCancelledDrafts(logger as Tes
     Test.assertEqual(editor.value, 5);
     Test.assert(editor.goBack());
     Test.assertEqual(Properties.getValue("intervalMinutes"), previous);
+    return true;
+}
+
+(:test)
+function timeEditorRestrictsHourDigitsAndResetsInvalidUnits(logger as Test.Logger) as Boolean {
+    var editor = new TimeView("startTime", text(Rez.Strings.StartHour), 19 * 60 + 30);
+    editor.change(1);
+    Test.assertEqual(editor.value, 2030);
+    Test.assert(!editor.confirm());
+    editor.change(-1);
+    Test.assertEqual(editor.value, 2330);
+    editor.change(1);
+    Test.assertEqual(editor.value, 2030);
+    Test.assert(!editor.goBack());
+    editor.change(1);
+    Test.assertEqual(editor.value, 30);
+    editor.change(-1);
+    Test.assertEqual(editor.value, 2030);
+    editor.change(-1);
+    Test.assertEqual(editor.value, 1030);
+    Test.assert(!editor.confirm());
+    editor.change(-1);
+    Test.assertEqual(editor.value, 1930);
+    Test.assert(!editor.goBack());
+    editor.change(1);
+    Test.assertEqual(editor.value, 2030);
+    Test.assert(!editor.confirm());
+    Test.assert(!editor.confirm());
+    Test.assert(!editor.confirm());
+    Test.assert(editor.confirm());
+    var midnight = new TimeView("endTime", text(Rez.Strings.EndHour), 0);
+    for (var i = 0; i < 3; i += 1) {
+        Test.assert(!midnight.confirm());
+    }
+    Test.assert(midnight.confirm());
+    return true;
+}
+
+(:test)
+function timeEditorWrapsMinutesWithinValidDigitRanges(logger as Test.Logger) as Boolean {
+    var editor = new TimeView("endTime", text(Rez.Strings.EndHour), 1439);
+    Test.assert(!editor.confirm());
+    Test.assert(!editor.confirm());
+    editor.change(1);
+    Test.assertEqual(editor.value, 2309);
+    Test.assert(!editor.confirm());
+    editor.change(1);
+    Test.assertEqual(editor.value, 2300);
+    Test.assert(editor.confirm());
+    Test.assert(!editor.goBack());
+    editor.change(-1);
+    Test.assert(!editor.confirm());
+    editor.change(-1);
+    Test.assertEqual(editor.value, 2359);
+    Test.assert(editor.confirm());
+    return true;
+}
+
+(:test)
+function combinedTimesCancelWithoutChangingStoredValuesOrGoalEditor(logger as Test.Logger) as Boolean {
+    var menu = new SettingsMenu(false);
+    var delegate = new SettingsDelegate(menu, false);
+    var keys = ["startTime", "endTime"];
+    for (var i = 0; i < keys.size(); i += 1) {
+        var previous = Properties.getValue(keys[i]);
+        if (!(previous instanceof Number)) {
+            logger.error("El horario guardado no es numerico");
+            return false;
+        }
+        var editor = delegate.createNumberEditor(keys[i], text(Rez.Strings.Settings), previous);
+        Test.assert(editor instanceof TimeView);
+        editor.change(1);
+        for (var digit = 0; digit < 3; digit += 1) {
+            Test.assert(!editor.confirm());
+        }
+        for (var digit = 0; digit < 3; digit += 1) {
+            Test.assert(!editor.goBack());
+        }
+        Test.assert(editor.goBack());
+        Test.assertEqual(Properties.getValue(keys[i]), previous);
+    }
+    var aboveRange = new TimeView("startTime", text(Rez.Strings.StartHour), 1440);
+    Test.assertEqual(aboveRange.value, 2359);
+    Test.assert(aboveRange.error != null);
+    Test.assert(aboveRange.goBack());
+    var belowRange = new TimeView("endTime", text(Rez.Strings.EndHour), -1);
+    Test.assertEqual(belowRange.value, 0);
+    Test.assert(belowRange.error != null);
+    Test.assert(belowRange.goBack());
+    var goal = delegate.createNumberEditor("goalMl", text(Rez.Strings.Goal), 2000);
+    Test.assert(!(goal instanceof DigitView));
+    goal.change(1);
+    Test.assertEqual(goal.value, 2050);
+    Test.assert(goal.confirm());
+    return true;
+}
+
+(:test)
+function timesSaveMinutesFromMidnightAndRefreshMenu(logger as Test.Logger) as Boolean {
+    var keys = ["startTime", "endTime"];
+    var previous = [] as Array<Properties.ValueType>;
+    for (var i = 0; i < keys.size(); i += 1) {
+        previous.add(Properties.getValue(keys[i]));
+    }
+    Properties.setValue("startTime", 570);
+    Properties.setValue("endTime", 1305);
+    var menu = new SettingsMenu(false);
+    var delegate = new SettingsDelegate(menu, false);
+    var start = delegate.createNumberEditor("startTime", text(Rez.Strings.StartHour), 570);
+    var end = delegate.createNumberEditor("endTime", text(Rez.Strings.EndHour), 1305);
+    start.change(1);
+    start.confirm();
+    start.confirm();
+    start.confirm();
+    start.change(1);
+    var startConfirmed = start.confirm();
+    if (startConfirmed) {
+        start.save();
+    }
+    end.confirm();
+    end.change(-1);
+    end.confirm();
+    end.confirm();
+    end.change(1);
+    var endConfirmed = end.confirm();
+    if (endConfirmed) {
+        end.save();
+    }
+    menu.refresh();
+    var startItem = menu.getItem(3);
+    var endItem = menu.getItem(4);
+    var daysItem = menu.getItem(5);
+    var startLabel = startItem != null ? startItem.getSubLabel() : null;
+    var endLabel = endItem != null ? endItem.getSubLabel() : null;
+    var daysId = daysItem != null ? daysItem.getId() : null;
+    var config = Config.read();
+    var savedStart = Properties.getValue("startTime");
+    var savedEnd = Properties.getValue("endTime");
+    for (var i = 0; i < keys.size(); i += 1) {
+        Properties.setValue(keys[i], previous[i]);
+    }
+    waterApp().reschedule();
+    Test.assert(startConfirmed && endConfirmed);
+    Test.assert(startLabel instanceof String && startLabel.equals("19:31"));
+    Test.assert(endLabel instanceof String && endLabel.equals("20:46"));
+    Test.assert(daysId instanceof String && daysId.equals("days"));
+    Test.assertEqual(savedStart, 19 * 60 + 31);
+    Test.assertEqual(savedEnd, 20 * 60 + 46);
+    Test.assertEqual(config.startMinute, 19 * 60 + 31);
+    Test.assertEqual(config.endMinute, 20 * 60 + 46);
     return true;
 }
 

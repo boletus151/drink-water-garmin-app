@@ -3,16 +3,14 @@
         <setting propertyKey="@Properties.enabled" title="@Strings.AppName"><settingConfig type="boolean"/></setting>
         <setting propertyKey="@Properties.goalMl" title="@Strings.Goal"><settingConfig type="numeric" min="50" max="10000"/></setting>
         <setting propertyKey="@Properties.intervalMinutes" title="@Strings.Interval"><settingConfig type="numeric" min="15" max="60"/></setting>
-        <setting propertyKey="@Properties.startHour" title="@Strings.StartHour"><settingConfig type="numeric" min="0" max="23"/></setting>
-        <setting propertyKey="@Properties.startMinute" title="@Strings.StartMinute"><settingConfig type="numeric" min="0" max="59"/></setting>
-        <setting propertyKey="@Properties.endHour" title="@Strings.EndHour"><settingConfig type="numeric" min="0" max="23"/></setting>
-        <setting propertyKey="@Properties.endMinute" title="@Strings.EndMinute"><settingConfig type="numeric" min="0" max="59"/></setting>
-        <setting propertyKey="@Properties.day2" title="@Strings.Monday"><settingConfig type="boolean"/></setting>
-        <setting propertyKey="@Properties.day3" title="@Strings.Tuesday"><settingConfig type="boolean"/></setting>
-        <setting propertyKey="@Properties.day4" title="@Strings.Wednesday"><settingConfig type="boolean"/></setting>
-        <setting propertyKey="@Properties.day5" title="@Strings.Thursday"><settingConfig type="boolean"/></setting>
-        <setting propertyKey="@Properties.day6" title="@Strings.Friday"><settingConfig type="boolean"/></setting>
-        <setting propertyKey="@Properties.day7" title="@Strings.Saturday"><settingConfig type="boolean"/></setting>
-        <setting propertyKey="@Properties.day1" title="@Strings.Sunday"><settingConfig type="boolean"/></setting>
+        <setting propertyKey="@Properties.startTime" title="@Strings.StartHour" prompt="@Strings.TimeMinutesHint"><settingConfig type="numeric" min="0" max="1439"/></setting>
+        <setting propertyKey="@Properties.endTime" title="@Strings.EndHour" prompt="@Strings.TimeMinutesHint"><settingConfig type="numeric" min="0" max="1439"/></setting>
+        <setting propertyKey="@Properties.day1" title="@Strings.Monday"><settingConfig type="boolean"/></setting>
+        <setting propertyKey="@Properties.day2" title="@Strings.Tuesday"><settingConfig type="boolean"/></setting>
+        <setting propertyKey="@Properties.day3" title="@Strings.Wednesday"><settingConfig type="boolean"/></setting>
+        <setting propertyKey="@Properties.day4" title="@Strings.Thursday"><settingConfig type="boolean"/></setting>
+        <setting propertyKey="@Properties.day5" title="@Strings.Friday"><settingConfig type="boolean"/></setting>
+        <setting propertyKey="@Properties.day6" title="@Strings.Saturday"><settingConfig type="boolean"/></setting>
+        <setting propertyKey="@Properties.day7" title="@Strings.Sunday"><settingConfig type="boolean"/></setting>
     </settings>
 </resources>

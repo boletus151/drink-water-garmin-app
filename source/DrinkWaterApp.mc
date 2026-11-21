@@ -65,4 +65,5 @@ class DrinkWaterApp extends Application.AppBase {
         reschedule();
         WatchUi.requestUpdate();
     }
+
 }

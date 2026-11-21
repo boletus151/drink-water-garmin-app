@@ -10,9 +10,14 @@ module Schedule {
     const MAX_DELAY_SECONDS = 60;
     const CHECKPOINT_SECONDS = 3600;
 
+    // Gregorian numbers Sunday as 1; settings run from Monday to Sunday.
+    function dayIndex(weekday as Number) as Number {
+        return (weekday + 5) % 7;
+    }
+
     function minuteOnDay(config as WaterConfig, weekday as Number,
                          seconds as Number) as Number? {
-        if (!config.enabled || config.error != null || !config.days[weekday - 1]) {
+        if (!config.enabled || config.error != null || !config.days[dayIndex(weekday)]) {
             return null;
         }
         var start = config.startMinute * 60;
@@ -72,7 +77,7 @@ module Schedule {
         var info = Gregorian.info(now, Time.FORMAT_SHORT);
         var minute = info.hour * 60 + info.min;
         var weekday = info.day_of_week as Number;
-        if (!config.days[weekday - 1] ||
+        if (!config.days[dayIndex(weekday)] ||
             minute < config.startMinute || minute > config.endMinute) {
             return null;
         }
