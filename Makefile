@@ -4,7 +4,7 @@ DEVELOPER_KEY ?= $(HOME)/.local/share/drink-water-tools/developer_key.der
 export JAVA_HOME
 export PATH := $(JAVA_HOME)/bin:$(PATH)
 
-.PHONY: build run test-build test package
+.PHONY: build run debug-build debug-run test-build test package
 
 build:
 	mkdir -p bin
@@ -15,6 +15,19 @@ run:
 		echo "Falta bin/drink-water.prg. Ejecuta make build primero." >&2; exit 1; \
 	fi
 	"$(SDK_HOME)/bin/monkeydo" bin/drink-water.prg fr645
+
+debug-build:
+	@if [ ! -f "$(DEBUG_JUNGLE)" ]; then \
+		echo "Falta la configuracion temporal. Ejecuta ./run-debug.sh." >&2; exit 1; \
+	fi
+	mkdir -p bin
+	"$(SDK_HOME)/bin/monkeyc" -f "monkey.jungle;$(DEBUG_JUNGLE)" -d fr645 -o bin/drink-water-debug.prg -y "$(DEVELOPER_KEY)" -l 3 -w
+
+debug-run:
+	@if [ ! -f bin/drink-water-debug.prg ]; then \
+		echo "Falta bin/drink-water-debug.prg. Ejecuta ./run-debug.sh primero." >&2; exit 1; \
+	fi
+	"$(SDK_HOME)/bin/monkeydo" bin/drink-water-debug.prg fr645
 
 test-build:
 	mkdir -p bin

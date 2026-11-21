@@ -33,14 +33,14 @@ class SettingsController extends WatchUi.Menu2InputDelegate {
         } else if (value instanceof Number) {
             var label = item.getLabel();
             var title = label instanceof String ? label : text(Rez.Strings.Settings);
-            var controller = createEditorController(key, title, value);
-            WatchUi.pushView(createEditorView(controller), controller, WatchUi.SLIDE_UP);
+            var controller = SettingsController.createEditorController(key, title, value);
+            WatchUi.pushView(SettingsController.createEditorView(controller), controller, WatchUi.SLIDE_UP);
         } else {
             throw new Lang.UnexpectedTypeException("Unsupported setting value: " + key, null, null);
         }
     }
 
-    function createEditorController(key as String, title as String, value as Number) as NumberController {
+    static function createEditorController(key as String, title as String, value as Number) as NumberController {
         if (key.equals("startTime") || key.equals("endTime")) {
             return new TimeController(key, title, value);
         }
@@ -56,7 +56,7 @@ class SettingsController extends WatchUi.Menu2InputDelegate {
         throw new Lang.UnexpectedTypeException("Unknown numeric setting: " + key, null, null);
     }
 
-    function createEditorView(controller as NumberController) as LayoutView {
+    static function createEditorView(controller as NumberController) as LayoutView {
         if (controller instanceof TimeController) {
             return new TimeView(controller);
         }

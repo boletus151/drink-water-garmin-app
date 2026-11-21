@@ -12,6 +12,7 @@ class DrinkWaterApp extends Application.AppBase {
     var reminder as Boolean = false;
     var scheduleError as Boolean = false;
     var visibleRoot as RootView? = null;
+    var screenPreview as Boolean = false;
 
     function initialize() {
         AppBase.initialize();
@@ -28,6 +29,12 @@ class DrinkWaterApp extends Application.AppBase {
             System.println("DrinkWater DEBUG: aviso en " + (target.value() - now.value()).toString() + " s");
         }
         reschedule();
+        var preview = ScreenDebug.initialView();
+        screenPreview = preview != null;
+        if (preview != null) {
+            System.println("DrinkWater DEBUG: pantalla " + ScreenDebug.SCREEN);
+            return preview;
+        }
         var view = createRootView();
         return [view, view.controller];
     }
@@ -49,6 +56,9 @@ class DrinkWaterApp extends Application.AppBase {
 
     (:typecheck(disableBackgroundCheck))
     function refreshRootView() as Boolean {
+        if (screenPreview) {
+            return false;
+        }
         var view = visibleRoot;
         if (view != null) {
             var completed = showGoalReached();

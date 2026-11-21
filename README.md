@@ -57,6 +57,8 @@ Paths below are relative to [source/](source/).
 | Files | Purpose |
 | --- | --- |
 | [App/DrinkWaterApp.mc](source/App/DrinkWaterApp.mc) | Entry point, lifecycle, root-view switching, persistence, and scheduling-error handling. |
+| [App/ScreenDebug.mc](source/App/ScreenDebug.mc) | Optional startup-screen selection for non-release builds; reuses real views and editor factories. |
+| [App/ScreenDebugConfig.mc](source/App/ScreenDebugConfig.mc) | Default screen-preview configuration; the debug launcher substitutes a temporary configuration at compile time. |
 | [Model/Config.mc](source/Model/Config.mc) | `WaterConfig`, property loading, validation, shared limits, and debug flag. |
 | [Model/Intake.mc](source/Model/Intake.mc) | Persistent daily-total reading, local-date keys, rollover, and stored-data validation; storage writes remain in the foreground application. |
 | [Service/Schedule.mc](source/Service/Schedule.mc) | Calendar calculations, due-slot keys, minimum spacing, checkpoints, and event registration. |
@@ -88,6 +90,7 @@ Paths below are relative to [source/](source/).
 | [manifest.xml](manifest.xml) | App identity, entry point, device, minimum API, language, and background permission. |
 | [monkey.jungle](monkey.jungle) | Compiler source, test, resource, and manifest paths. |
 | [Makefile](Makefile), [run-simulator.sh](run-simulator.sh) | Strict builds, simulator execution, tests, and export; the script builds before running. |
+| [run-debug.sh](run-debug.sh), [debug-screen.conf](debug-screen.conf) | Isolated screen-preview build and launch; the configuration file contains the default screen name. |
 | [.vscode/launch.json](.vscode/launch.json) | Monkey C debugger configuration for `fr645`. |
 | [tests/ScheduleTests.mc](tests/ScheduleTests.mc) | Regression tests for configuration/types, calendar boundaries, reminder tolerance/spacing/checkpoints, daily intake and goal suspension/resumption, editor persistence, menu toggles, and screen rendering. Tests that modify settings/storage restore them after failures. |
 
@@ -211,6 +214,37 @@ Run these commands from the project directory in the Terminal session configured
    You should see the Spanish **Bebe agua** main screen with the goal and schedule. If loading fails, check that the simulator is open, the `fr645` device profile has finished downloading, and the terminal is using the intended SDK.
 
 3. Use the simulated watch buttons as described in **Watch controls and settings**: **START** toggles reminders or confirms a selection, **UP/MENU** opens settings, **UP/DOWN** changes values, and **BACK** returns or cancels. Starting with a zero daily total, set the goal to **250 ml** and the serving to **150 ml**, then select **Registrar toma**: the main screen should show **Objetivo: 250 ml** and **Llevas: 150 ml**. Register another serving: the dedicated **Objetivo cumplido** screen should show **Llevas: 300 ml**. Raise the goal above the total to return to the main screen. Restore your intended settings afterward. Check the interval, time window, and weekdays, then return to the watch face to exercise background reminders.
+
+### Previewing a specific screen
+
+With the simulator already open, run:
+
+```sh
+./run-debug.sh            # Reads the screen name from debug-screen.conf (default: goal)
+./run-debug.sh reminder   # Overrides the screen for this launch only
+./run-debug.sh startTime
+```
+
+[debug-screen.conf](debug-screen.conf) contains only a screen name, with no quotes or `SCREEN=` prefix. Edit it to choose the default for future debug launches. Make tool-path overrides are supported, for example `./run-debug.sh goal SDK_HOME="/path/to/sdk"`.
+
+The launcher generates a temporary enabled configuration, compiles `bin/drink-water-debug.prg`, and loads it without a debugger. It never edits the normal configuration or overwrites `bin/drink-water.prg`. Temporary configuration files are removed on exit, including build/load failures or interruption. The compiled preview remains available for `make debug-run`. Use `./run-simulator.sh` to rebuild and launch the normal app afterward.
+
+The terminal should print `DrinkWater DEBUG: pantalla goal` (or the selected name) when the preview starts. The command normally stays active until the app closes. If compilation succeeds but the simulator remains on the Garmin logo without that startup message, interrupt the script, close and reopen the simulator, and run the script again; the SDK loader can remain waiting without reporting an error when the simulator is stuck.
+
+For persistent preview selection in regular non-release builds or VS Code debugging, edit [source/App/ScreenDebugConfig.mc](source/App/ScreenDebugConfig.mc):
+
+```monkeyc
+const ENABLED = true;
+const SCREEN = "goal";
+```
+
+Then run `./run-simulator.sh` with the simulator already open. No debugger is required. Every configuration or layout change requires rebuilding; `make run` alone reloads the previous build.
+
+Available screens: `water`, `reminder`, `goalReached`, `goal`, `serving`, `interval`, `startTime`, `endTime`, `settings`, and `days`. The two time options share a layout but use their respective titles and values. Unknown screen names fail explicitly instead of opening another screen.
+
+Preview mode opens the real view with its normal controller and current saved settings/intake, not mock data. Controls still save changes and scheduling still runs normally. Automatic root-screen switching is suppressed for the entire preview session, so a reminder or daily-goal update does not replace the selected screen. Saving or cancelling an editor opened as the initial screen closes the app; screens opened from a menu return to that menu as usual.
+
+Set `ENABLED = false` in [source/App/ScreenDebugConfig.mc](source/App/ScreenDebugConfig.mc) to restore normal startup and automatic screen switching for regular builds. The debug launcher ignores these persistent defaults for its own isolated build. The selector is independent of `Config.DEBUG` (accelerated reminders). Garmin's `(:debug)`/`(:release)` annotations disable screen previews in release builds, including `make package`, even when `ENABLED` is true. Non-release simulator builds and VS Code debug launches both honor the configuration.
 
 For interactive debugging in VS Code, install/configure Garmin's Monkey C extension with your SDK and developer key, select **Debug Bebe agua (Forerunner 645)**, and press **F5**. The configuration in [.vscode/launch.json](.vscode/launch.json) targets `fr645` and pauses at launch (`stopAtLaunch`); resume execution to interact with the app.
 
