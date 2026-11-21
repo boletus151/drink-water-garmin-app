@@ -1,0 +1,35 @@
+<resources>
+    <string id="AppName">Bebe agua</string>
+    <string id="Reminder" scope="background">Recuerda beber agua</string>
+    <string id="Settings">Ajustes</string>
+    <string id="Enabled">Activados</string>
+    <string id="Disabled">Desactivados</string>
+    <string id="Goal">Objetivo diario</string>
+    <string id="Interval">Intervalo (min)</string>
+    <string id="StartHour">Hora inicial</string>
+    <string id="StartMinute">Minuto inicial</string>
+    <string id="EndHour">Hora final</string>
+    <string id="EndMinute">Minuto final</string>
+    <string id="Days">Dias activos</string>
+    <string id="Sunday">Domingo</string>
+    <string id="Monday">Lunes</string>
+    <string id="Tuesday">Martes</string>
+    <string id="Wednesday">Miercoles</string>
+    <string id="Thursday">Jueves</string>
+    <string id="Friday">Viernes</string>
+    <string id="Saturday">Sabado</string>
+    <string id="ActivateHint">START: activar</string>
+    <string id="DeactivateHint">START: desactivar</string>
+    <string id="MenuHint">UP: ajustes</string>
+    <string id="EditHint">UP/DOWN: cambiar</string>
+    <string id="SaveHint">START: guardar</string>
+    <string id="Next">Proximo</string>
+    <string id="NoNext">Sin avisos pendientes</string>
+    <string id="InvalidSettings" scope="background">Revisa los ajustes</string>
+    <string id="InvalidHours" scope="background">Inicio debe ser menor que fin</string>
+    <string id="NoDays" scope="background">Selecciona algun dia</string>
+    <string id="InvalidInterval" scope="background">Intervalo: 5 a 1440 min</string>
+    <string id="InvalidGoal" scope="background">Objetivo: 50 a 10000 ml</string>
+    <string id="UnsupportedVersion" scope="background">Version de ajustes no compatible</string>
+    <string id="ScheduleError">Error al programar avisos</string>
+</resources>

@@ -1,0 +1,16 @@
+<iq:manifest version="3" xmlns:iq="http://www.garmin.com/xml/connectiq">
+    <iq:application id="b6df4af952904f238371d75a01c97448" type="watch-app"
+        name="@Strings.AppName" entry="DrinkWaterApp"
+        launcherIcon="@Drawables.LauncherIcon" minApiLevel="3.1.0">
+        <iq:products>
+            <iq:product id="fr645"/>
+        </iq:products>
+        <iq:permissions>
+            <iq:uses-permission id="Background"/>
+        </iq:permissions>
+        <iq:languages>
+            <iq:language>spa</iq:language>
+        </iq:languages>
+        <iq:barrels/>
+    </iq:application>
+</iq:manifest>
