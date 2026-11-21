@@ -1,324 +1,229 @@
-# Bebe agua
+# Drink Water
 
-Aplicacion Connect IQ para **Forerunner 645 (sin Music)**, escrita en Monkey C con el SDK oficial de Garmin. Version: **0.5.0**.
+**Bebe agua** is a standalone Garmin Connect IQ watch app for the **Forerunner 645 (non-Music)**, written in **Monkey C**, targeting API **3.1+**. The watch interface is in Spanish.
 
-## Funciones
+## What it does
 
-- Objetivo diario configurable: 50 a 10000 ml, informativo; no registra consumo.
-- Intervalo configurable: 15 a 60 minutos, editado cifra a cifra en el reloj.
-- Horario del mismo dia, con inicio anterior al fin; cada extremo se edita en una pantalla HH:MM, cifra a cifra.
-- Seleccion independiente de los siete dias de la semana: `day1` es lunes, `day2` martes, hasta `day7` domingo.
-- Activacion/desactivacion persistente sin perder los ajustes.
-- Configuracion desde el reloj y desde los ajustes de Connect IQ en el movil.
-- Avisos autonomos en segundo plano, sin conexion al telefono.
+- Sends scheduled hydration reminders without a phone connection.
+- Stores an informational daily goal of **50-10,000 ml**; it does **not** track water intake.
+- Supports reminder intervals of **15-60 minutes**, a same-day time window, and independently selected weekdays.
+- Allows persistent configuration on the watch or through Connect IQ mobile settings.
+- Shows the goal, schedule, enabled state, and next reminder on the main screen; a separate reminder screen displays the hydration prompt.
 
-El primer aviso corresponde a la hora inicial. Los siguientes mantienen la cadencia desde esa hora. La hora final se incluye **solo si coincide con la cadencia**. Por ejemplo, 09:00 a 10:00 cada 17 minutos produce 09:00, 09:17, 09:34 y 09:51.
+Defaults: reminders enabled, **2,000 ml**, every **60 minutes**, **09:00-21:00**, every day.
 
-## Limitaciones del Forerunner 645
+### Scheduling and limitations
 
-El aviso es el **dialogo del sistema que solicita abrir la aplicacion**, con el texto "Recuerda beber agua". Aceptarlo abre la aplicacion; descartarlo no desactiva futuros avisos. No se solicita vibracion, sonido ni encendido de la iluminacion.
+Reminders follow local watch time, starting at the configured start time. The end time is a reminder slot only when it matches the interval cadence. Overnight windows are unsupported; start must precede end, and at least one day must be selected. Invalid settings suspend scheduling and display an error.
 
-No es una notificacion moderna ni una pantalla personalizada superpuesta a la esfera. El firmware controla cuando muestra el dialogo y puede posponerlo o impedirlo durante otras actividades. No se garantiza puntualidad de alarma.
+The background service requests Garmin's **system dialog to open the app** ("Recuerda beber agua"), not a custom notification over the watch face. Dismissing it does not disable future reminders. The app does not request sound, vibration, or backlight activation; firmware controls presentation, so alarm-level punctuality is not guaranteed.
 
-La aplicacion descarta eventos con mas de 60 segundos de retraso y no reproduce avisos atrasados. El horario se interpreta con precision de minutos: el minuto final completo esta incluido. No solicita avisos fuera de esos minutos o en dias excluidos; Garmin controla cuando presenta un dialogo ya solicitado. Garmin exige al menos cinco minutos entre ejecuciones en segundo plano. Si la siguiente ranura queda demasiado cerca, se aplaza dentro de la tolerancia de 60 segundos; si no es posible, se omite para conservar la cadencia y respetar el limite.
+The scheduler accepts up to **60 seconds** of delay, suppresses duplicate reminders, and respects Garmin's **five-minute minimum** between background executions. A slot may be delayed within that tolerance or skipped. Hourly checkpoints re-evaluate the schedule without displacing nearby reminders. Nonexistent daylight-saving times are skipped; repeated local slots are not notified twice. Time-zone changes may take approximately **65 minutes** to be reflected unless the app is reopened.
 
-Mientras hay recordatorios activados se realizan comprobaciones aproximadamente cada hora (hasta 65 minutos para no desplazar un aviso cercano), aunque el siguiente aviso sea otro dia, para revisar la hora y los ajustes. Esto tiene un coste de bateria que debe medirse en el dispositivo. Desactivar los avisos elimina el evento temporal.
+There is no server, analytics, intake history, or medical recommendation engine.
 
-Se usa la hora local del reloj. Se omiten horas inexistentes al cambiar al horario de verano y no se repite un aviso en una hora duplicada. Tras cambiar la zona horaria, la adaptacion puede tardar hasta aproximadamente 65 minutos; abrir y cerrar la aplicacion recalcula inmediatamente la programacion.
+## Watch controls and settings
 
-## Uso en el reloj
+- Open the app once after installation. **START** toggles reminders; **UP** or **MENU** opens settings.
+- **UP/DOWN** navigates or changes values; **START** selects, advances through digits, or saves. **BACK** returns to the previous digit or cancels from the first digit.
+- The goal changes in **50 ml** steps. Interval and time editors use highlighted digits; times are displayed as **HH:MM**.
+- In the days menu, **START** toggles the selected weekday. Exit to the watch face with **BACK**; reminders continue in the background.
 
-1. Abre **Bebe agua** desde la lista de aplicaciones, al menos una vez despues de instalar.
-2. Pulsa **START** en la pantalla principal para activar/desactivar.
-3. Pulsa **UP** (o manten UP/MENU) para abrir los ajustes.
-4. Usa **UP/DOWN** y **START** para seleccionar una opcion.
-5. En un editor numerico, UP aumenta, DOWN disminuye y START guarda. BACK cancela.
-6. En "Dias activos", START cambia el estado del dia seleccionado.
-7. Sal con BACK para volver a la esfera. Los recordatorios continuan.
+Properties use schema version **3**. `startTime` and `endTime` store minutes since midnight (**09:30 = 570**), which is also the format used by mobile settings. `day1` through `day7` mean Monday through Sunday. Older schema markers 1 and 2 are accepted, but there is **no migration**: when upgrading from separate hour/minute properties or Sunday-first day numbering, reconfigure the times and weekdays.
 
-En el reloj, hora y minutos se editan juntos en "Hora inicial" y "Hora final". Un horario invalido o ningun dia seleccionado muestra un error en la pantalla principal y suspende la programacion hasta corregirlo. Cambiar ambos extremos puede dejar un estado temporalmente invalido: termina de editarlos antes de salir.
+## Architecture
 
-### Editor del intervalo
+The app uses an **MVC-style separation**, with Garmin input delegates as controllers and compiled XML layouts as presentation resources:
 
-Las dos cifras se muestran en la misma pantalla. La cifra seleccionada aparece resaltada:
+1. **Application:** initializes the main/reminder view, persists settings and foreground reminder state, and re-arms scheduling on lifecycle/settings changes.
+2. **Model and services:** read and validate application properties, calculate local-calendar reminder slots, and register temporal background events.
+3. **Background execution:** requests application wake for a due, non-duplicate reminder, schedules the next event, and returns its reminder key to the foreground through `Background.exit`. The service does not write properties or storage.
+4. **UI:** views render current data; controllers own editor drafts, validation, saving, and navigation. Screens compose shared components rather than inheriting from other screens. Garmin manages menu navigation; XML defines headers, rows, and screen content.
 
-1. UP/DOWN cambia las decenas entre 0 y 9; START confirma y selecciona las unidades.
-2. UP/DOWN cambia las unidades; START guarda el numero completo.
-3. Solo se guardan valores entre **15 y 60**. Un valor fuera de rango muestra un error y permite corregirlo.
-4. BACK desde las unidades vuelve a las decenas; BACK desde las decenas cancela sin guardar.
+### Source files
 
-Por ejemplo, para 15 minutos selecciona primero **1**, pulsa START, selecciona **5** y pulsa START de nuevo. El objetivo diario conserva su editor anterior.
+Paths below are relative to [source/](source/).
 
-Al actualizar, se mantienen las propiedades existentes. Si un intervalo antiguo esta fuera de 15 a 60, los avisos se suspenden y la pantalla principal muestra un error. Al abrir el editor se propone el limite mas cercano con un aviso; no se cambia el valor guardado hasta confirmar ambas cifras.
-
-### Editores de hora inicial y final
-
-**Hora inicial** y **Hora final** muestran la hora completa en formato **HH:MM** (por ejemplo, **09:30**), tanto en el menu como en el editor.
-
-- Las horas admiten **00 a 23** y los minutos **00 a 59**.
-- UP/DOWN cambia la cifra resaltada; START avanza por las cuatro cifras y, al confirmar la ultima, guarda hora y minutos juntos.
-- Solo se pueden seleccionar cifras validas: decenas de hora 0-2, unidades de hora 0-3 si las decenas son 2 (0-9 en otro caso), decenas de minutos 0-5 y unidades de minutos 0-9. UP/DOWN recorre esos rangos de forma circular.
-- Si al cambiar las decenas de hora a 2 las unidades superan 3, se ponen a 0; por ejemplo, 19:30 pasa a 20:30.
-- BACK vuelve a la cifra anterior; desde la primera cancela sin guardar ninguna parte de la hora.
-
-La regla de inicio anterior al fin no cambia: si al editar los extremos el horario queda temporalmente invalido, los avisos se suspenden hasta corregirlo.
-
-### Apariencia
-
-La pantalla principal, la del recordatorio, los menus de ajustes y dias, y los editores comparten un fondo negro con acentos azul agua. El texto principal es blanco, las indicaciones secundarias son gris claro y los errores aparecen en ambar, siempre acompanados de texto. La fila del menu seleccionada tiene fondo azul oscuro; la cifra activa, fondo azul agua y texto negro. Los botones y el guardado no cambian.
-
-La pantalla principal y el recordatorio son vistas distintas. La principal muestra el objetivo diario, el horario y el proximo aviso. El recordatorio muestra "Recuerda beber agua", sin horario ni proxima alerta. Ambas comparten el encabezado, los errores y los botones. Guardar un ajuste vuelve al estado de pantalla principal; recibir un aviso nuevo selecciona la vista del recordatorio sin interrumpir un editor abierto.
-
-Ninguna pantalla hereda de otra pantalla. `WaterView` y `ReminderView` heredan de [RootView](source/View/Common/RootView.mc), que solo coordina su ciclo de visibilidad y delegado de entrada. Ambas componen [WaterFrame](source/View/Components/WaterFrame.mc), que carga el encabezado, los errores y las indicaciones compartidas. Cada pantalla actualiza y oculta exclusivamente sus propios elementos; el componente no presupone que existan `content`, `schedule` o `next`.
-
-El dialogo inicial "Recuerda beber agua" y los ajustes del movil conservan la apariencia del sistema Garmin: la aplicacion no controla sus colores.
-
-La distribucion, las fuentes y los colores iniciales se definen en [resources/layouts/](resources/layouts/). [Theme.mc](source/Style/Theme.mc) conserva los colores usados por el codigo al cambiar estados:
-
-| Pantalla o elemento | XML |
+| Files | Purpose |
 | --- | --- |
-| Principal | [water.xml](resources/layouts/screens/water.xml) |
-| Recordatorio, sin proxima alerta | [reminder.xml](resources/layouts/screens/reminder.xml) |
-| Encabezado, errores e indicaciones de ambas pantallas | [water-frame.xml](resources/layouts/components/water-frame.xml) |
-| Objetivo diario | [goal.xml](resources/layouts/screens/goal.xml) |
-| Intervalo | [interval.xml](resources/layouts/screens/interval.xml) |
-| Hora inicial y final | [time.xml](resources/layouts/screens/time.xml) |
-| Encabezado de ajustes | [settings-menu-header.xml](resources/layouts/components/settings-menu-header.xml) |
-| Encabezado de dias | [days-menu-header.xml](resources/layouts/components/days-menu-header.xml) |
-| Fila de ambos menus | [menu-item.xml](resources/layouts/components/menu-item.xml) |
+| [App/DrinkWaterApp.mc](source/App/DrinkWaterApp.mc) | Entry point, lifecycle, root-view switching, persistence, and scheduling-error handling. |
+| [Model/Config.mc](source/Model/Config.mc) | `WaterConfig`, property loading, validation, shared limits, and debug flag. |
+| [Service/Schedule.mc](source/Service/Schedule.mc) | Calendar calculations, due-slot keys, minimum spacing, checkpoints, and event registration. |
+| [Service/WaterService.mc](source/Service/WaterService.mc) | Background callback, duplicate suppression, wake request, and result delivery. |
+| [Style/Theme.mc](source/Style/Theme.mc) | Runtime colors and menu spacing constants. |
+| [View/Common/LayoutView.mc](source/View/Common/LayoutView.mc), [RootView.mc](source/View/Common/RootView.mc) | Typed XML-element access, API 3.1-compatible visibility/drawing, and root-view lifecycle helpers. |
+| [Controller/Common/RootController.mc](source/Controller/Common/RootController.mc) | Shared reminder toggle and settings navigation. |
+| [View/Screens/WaterView.mc](source/View/Screens/WaterView.mc), [ReminderView.mc](source/View/Screens/ReminderView.mc) | Main status/schedule screen and separate reminder screen. |
+| [Controller/Screens/WaterController.mc](source/Controller/Screens/WaterController.mc), [ReminderController.mc](source/Controller/Screens/ReminderController.mc) | Root-screen input delegates; the main controller also provides the next reminder for display. |
+| [View/Screens/GoalView.mc](source/View/Screens/GoalView.mc), [IntervalView.mc](source/View/Screens/IntervalView.mc), [TimeView.mc](source/View/Screens/TimeView.mc) | Editor screens; one time view serves both start and end settings. |
+| [Controller/Screens/GoalController.mc](source/Controller/Screens/GoalController.mc), [IntervalController.mc](source/Controller/Screens/IntervalController.mc), [TimeController.mc](source/Controller/Screens/TimeController.mc) | Setting-specific ranges, digit rules, and time conversion on save. |
+| [View/Screens/GarminScreens/SettingsMenu.mc](source/View/Screens/GarminScreens/SettingsMenu.mc), [DaysMenu.mc](source/View/Screens/GarminScreens/DaysMenu.mc) | Native Garmin settings and weekday menus. |
+| [Controller/Screens/GarminScreens/SettingsController.mc](source/Controller/Screens/GarminScreens/SettingsController.mc), [DaysController.mc](source/Controller/Screens/GarminScreens/DaysController.mc) | Open editors, toggle settings/days, and refresh menu values. |
+| [Controller/Components/NumberController.mc](source/Controller/Components/NumberController.mc), [DigitController.mc](source/Controller/Components/DigitController.mc) | Shared draft editing, confirmation, cancellation, and button handling. |
+| [View/Components/NumberEditor.mc](source/View/Components/NumberEditor.mc), [DigitEditor.mc](source/View/Components/DigitEditor.mc) | Reusable numeric presentation and active-digit/error rendering. |
+| [View/Components/WaterFrame.mc](source/View/Components/WaterFrame.mc) | Shared root-screen header, errors, and control hints. |
+| [View/Components/SettingsList.mc](source/View/Components/SettingsList.mc), [SettingsTitle.mc](source/View/Components/SettingsTitle.mc), [SettingsItem.mc](source/View/Components/SettingsItem.mc) | Menu value formatting/refresh, headers, and focused rows. |
 
-[screens/](resources/layouts/screens/) contiene la parte propia de cada pantalla; [components/](resources/layouts/components/) contiene piezas reutilizables que se incorporan a ella. Los nombres de los componentes describen su funcion: `frame` para el marco compartido, `header` para encabezados e `item` para filas. Los identificadores `SettingsMenuHeaderLayout` y `DaysMenuHeaderLayout` dejan claro que esos recursos no representan menus completos. El codigo que los presenta se encuentra en [View/Components/](source/View/Components/), no en `resources`.
+### Resources and project files
 
-Los menus conservan el control nativo de Garmin para la lista, el desplazamiento y la seleccion; sus encabezados y filas usan XML. Los layouts se compilan en la app: cambiar un XML o la paleta requiere recompilar, no se cargan ficheros externos en el reloj.
-
-Los XML usan componentes nativos de Garmin: `label` para cifras y textos de una linea, `text-area` para errores, rangos, proximo aviso y menus, y los `drawable-list` de [drawables.xml](resources/drawables.xml) para el fondo y el foco del menu. Las posiciones y dimensiones porcentuales se calculan respecto al contexto de dibujo, sin fijar una resolucion en pixeles. En una etiqueta con justificacion `CENTER | VCENTER`, `x` e `y` indican el centro del texto. En un area, `x="center"` la centra horizontalmente; `y` indica su borde superior y `height` reserva su espacio. La justificacion centra el texto dentro del area. El compilador exige colores literales o constantes `Graphics.COLOR_*` en los atributos nativos, no referencias a `Theme`; los valores iniciales del XML deben mantenerse en consonancia con los colores de estado del codigo:
-
-```xml
-<label id="title" x="50%" y="14%" font="Graphics.FONT_SMALL"
-       text="@Strings.AppName" color="0x55FFFF"
-       justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
-```
-
-Las cifras tienen centros porcentuales explicitos, que no se mueven al cambiar el valor o la seleccion. En las horas estan en el 28%, 40%, 60% y 72% del ancho, con los dos puntos en el 50%; el intervalo usa el 43% y el 57%. Su `y` es el centro vertical por la justificacion `VCENTER`. La cifra activa usa el fondo nativo del texto en azul agua, sin un drawable de seleccion propio:
-
-```xml
-<label id="digit0" x="28%" y="40%" font="Graphics.FONT_NUMBER_MILD"
-       text="0" color="0xFFFFFF" background="Graphics.COLOR_TRANSPARENT"
-       justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
-```
-
-Los margenes y espacios de cada pantalla se ajustan en su XML. El contenido largo ocupa la zona central, mas ancha en el contorno circular del Forerunner 645. Los encabezados y filas de menu usan su propio contexto rectangular; las filas reparten la altura entre el titulo y el valor, o usan toda la altura para una entrada sin valor. La altura nativa de la fila sigue calculandose con la fuente del dispositivo, `STACK_GAP`, `MENU_PADDING` y `MENU_FOCUS_PADDING` de [Theme.mc](source/Style/Theme.mc).
-
-`text-area`, disponible desde API 3.1, aplica los saltos de linea de forma nativa dentro del ancho y alto declarados. Los errores tienen un area mas alta y sustituyen al contenido normal. Ocultar un elemento deja su zona libre: ya no se recolocan las filas ni se reducen automaticamente las fuentes. Los textos iniciales del XML permiten entender la pantalla y se sustituyen por los valores reales en `onUpdate`. Los botones, la validacion y el guardado no cambian.
-
-El manifiesto sigue admitiendo solo el Forerunner 645. Las posiciones se adaptan al tamano del contexto, pero los porcentajes no garantizan que cualquier texto o fuente quepa en cualquier reloj. Anadir otro dispositivo requiere incorporar su perfil y validar sus fuentes, pantalla y controles; si hace falta, se pueden definir variantes de recursos por dispositivo.
-
-Conserva los identificadores de los elementos que actualiza el codigo: `content` y `status` en las dos vistas principales; `schedule` y `next` solo en la principal; `title`, `errorTitle`, `errorDetail`, `toggleHint` y `menuHint` en [water-frame.xml](resources/layouts/components/water-frame.xml); `title`, `digitN`, `range` y `confirmHint` en los editores por cifras. `WaterFrame.setLayout` combina los drawables de la pantalla y del marco usando el mismo contexto de dibujo, por lo que los porcentajes y el acceso por identificador se mantienen. [LayoutView.mc](source/View/Common/LayoutView.mc) solo proporciona acceso tipado a los textos y controla que elementos dibujar, porque API 3.1 no admite la visibilidad nativa de los drawables. Ya no contiene un motor de distribucion ni componentes de dibujo propios.
-
-### Organizacion estilo MVC
-
-El codigo de [source/](source/) se organiza por responsabilidades:
-
-| Carpeta | Responsabilidad |
+| Files | Purpose |
 | --- | --- |
-| [App/](source/App/) | Punto de entrada, ciclo de vida y coordinacion del guardado. |
-| [Model/](source/Model/) | Datos de configuracion, lectura de propiedades y validacion. |
-| [Service/](source/Service/) | Calculo del calendario, registro de eventos y ejecucion en segundo plano. |
-| [View/Screens/](source/View/Screens/) | Vistas de pantallas con layout XML propio, que componen elementos reutilizables. |
-| [View/Screens/GarminScreens/](source/View/Screens/GarminScreens/) | Pantallas de menu nativas de Garmin, sin layout XML completo propio. |
-| [View/Components/](source/View/Components/) | Marco compartido, presentacion de editores, encabezados, filas y refresco de listas. |
-| [View/Common/](source/View/Common/) | Infraestructura de layouts y ciclo de visibilidad, sin contenido de una pantalla concreta. |
-| [Controller/Screens/](source/Controller/Screens/) | Delegados de entrada de las pantallas con layout XML propio. |
-| [Controller/Screens/GarminScreens/](source/Controller/Screens/GarminScreens/) | Delegados de entrada y navegacion de los menus nativos de Garmin. |
-| [Controller/Components/](source/Controller/Components/) | Borradores, validacion y botones reutilizables de los editores numericos. |
-| [Controller/Common/](source/Controller/Common/) | Comportamiento compartido de los botones de las vistas principales. |
-| [Style/](source/Style/) | Paleta y constantes de apariencia. |
+| [resources/layouts/screens/](resources/layouts/screens/) | `water.xml`, `reminder.xml`, `goal.xml`, `interval.xml`, and `time.xml`: screen-specific layouts. |
+| [resources/layouts/components/](resources/layouts/components/) | `water-frame.xml`, `settings-menu-header.xml`, `days-menu-header.xml`, and `menu-item.xml`: reusable UI layouts. |
+| [resources/properties.xml](resources/properties.xml), [settings.xml](resources/settings.xml) | Persistent defaults/schema and mobile-settings fields/ranges. |
+| [resources/strings.xml](resources/strings.xml) | Spanish UI text and background-accessible messages. |
+| [resources/drawables.xml](resources/drawables.xml), [icon.svg](resources/icon.svg) | Background/focus drawables and launcher icon. |
+| [manifest.xml](manifest.xml) | App identity, entry point, device, minimum API, language, and background permission. |
+| [monkey.jungle](monkey.jungle) | Compiler source, test, resource, and manifest paths. |
+| [Makefile](Makefile), [run-simulator.sh](run-simulator.sh) | Strict builds, simulator execution, tests, and export; the script builds before running. |
+| [.vscode/launch.json](.vscode/launch.json) | Monkey C debugger configuration for `fr645`. |
+| [tests/ScheduleTests.mc](tests/ScheduleTests.mc) | Regression tests for configuration/types, calendar boundaries, reminder tolerance/spacing/checkpoints, editor persistence, menu toggles, and screen rendering. Tests that modify settings restore them after failures. |
 
-Los layouts se organizan en [resources/layouts/screens/](resources/layouts/screens/) y [resources/layouts/components/](resources/layouts/components/); las pruebas permanecen en [tests/](tests/). `resources` contiene solo recursos, no controladores Monkey C. Un componente puramente visual no necesita un controlador propio: el marco y los elementos de menu reutilizan la presentacion, mientras que los editores tambien comparten su logica de entrada. Las carpetas no introducen nuevos modulos. Los recursos XML se referencian por su identificador, no por su ruta. `monkey.jungle` conserva `source` como ruta raiz de codigo y `resources` como raiz de recursos; el compilador incluye sus subcarpetas.
+XML layouts use native labels/text areas and relative positions. Layout and theme changes require recompilation; keep XML colors consistent with the runtime palette.
 
-- **Modelo compartido:** `Config` y `Schedule` mantienen la configuracion y el calendario; `DrinkWaterApp.save` persiste los cambios y recalcula los avisos.
-- **Vista:** carga el XML, lee los datos y actualiza textos, colores y elementos mostrados. No modifica ni guarda el borrador del editor.
-- **Controlador:** es el delegado de entrada de Garmin. Mantiene el borrador, responde a los botones, valida, confirma o cancela, guarda y gestiona la navegacion.
+## Prerequisites
 
-Cada pantalla tiene su vista y controlador en archivos propios:
+The following walkthrough uses **macOS and Terminal**. The app targets only the **Forerunner 645 (non-Music)** with Connect IQ API **3.1.0+**; it is not a generic build for any Garmin watch. You can use the simulator without owning the watch.
 
-| Pantalla | Vista | Controlador |
-| --- | --- | --- |
-| Principal | [WaterView.mc](source/View/Screens/WaterView.mc) | [WaterController.mc](source/Controller/Screens/WaterController.mc) |
-| Recordatorio | [ReminderView.mc](source/View/Screens/ReminderView.mc) | [ReminderController.mc](source/Controller/Screens/ReminderController.mc) |
-| Ajustes | [SettingsMenu.mc](source/View/Screens/GarminScreens/SettingsMenu.mc) | [SettingsController.mc](source/Controller/Screens/GarminScreens/SettingsController.mc) |
-| Dias activos | [DaysMenu.mc](source/View/Screens/GarminScreens/DaysMenu.mc) | [DaysController.mc](source/Controller/Screens/GarminScreens/DaysController.mc) |
-| Objetivo diario | [GoalView.mc](source/View/Screens/GoalView.mc) | [GoalController.mc](source/Controller/Screens/GoalController.mc) |
-| Intervalo | [IntervalView.mc](source/View/Screens/IntervalView.mc) | [IntervalController.mc](source/Controller/Screens/IntervalController.mc) |
-| Hora inicial y final | [TimeView.mc](source/View/Screens/TimeView.mc) | [TimeController.mc](source/Controller/Screens/TimeController.mc) |
+### 1. Install the basic tools
 
-Las dos horas reutilizan la misma logica, vista y layout [time.xml](resources/layouts/screens/time.xml). El controlador aporta el titulo y el valor; `TimeView` e `IntervalView` componen [DigitEditor](source/View/Components/DigitEditor.mc), y `GoalView` compone [NumberEditor](source/View/Components/NumberEditor.mc). Los componentes actualizan los textos sin convertirse en pantallas ni gestionar la navegacion. [NumberController](source/Controller/Components/NumberController.mc) y [DigitController](source/Controller/Components/DigitController.mc) comparten el comportamiento de edicion; [RootController](source/Controller/Common/RootController.mc) reutiliza los botones de principal y recordatorio. Los menus heredan directamente de `WatchUi.CustomMenu` y componen [SettingsList](source/View/Components/SettingsList.mc), [SettingsTitle](source/View/Components/SettingsTitle.mc) y [SettingsItem](source/View/Components/SettingsItem.mc).
+- Install **Git and Make**. On macOS, run `xcode-select --install` if the Command Line Tools are not installed, and complete the installation dialog.
+- Install a **Java 17 JDK** for your Mac's architecture, for example from [Eclipse Temurin](https://adoptium.net/temurin/releases/?version=17).
+- Install [Visual Studio Code](https://code.visualstudio.com/). This guide uses Garmin's extension to generate the signing key and optionally debug the app.
 
-Al abrir un editor, la vista recibe el mismo controlador que Garmin utiliza como delegado:
-
-```monkeyc
-var controller = new IntervalController(text(Rez.Strings.Interval), 15);
-var view = new IntervalView(controller);
-WatchUi.pushView(view, controller, WatchUi.SLIDE_UP);
-```
-
-No hay un framework MVC adicional ni copias del modelo por pantalla. Los cambios de organizacion no alteran los botones, las reglas de validacion ni el guardado.
-
-### Prueba rapida del aviso
-
-La constante `Config.DEBUG` en [Config.mc](source/Model/Config.mc) esta en `true` para pruebas. Al abrir la app con los avisos activados y una configuracion valida, solicita un unico aviso de prueba **60 segundos despues de abrir**, aunque sea fuera del horario o de los dias activos. Sal inmediatamente con BACK para probarlo con la aplicacion cerrada. Salir o editar ajustes no reinicia la cuenta atras; desactivar los avisos cancela el evento. Abrir de nuevo la app inicia otra prueba, tambien al abrirla desde un aviso.
-
-Si el servicio se ha ejecutado recientemente, la prueba se aplaza hasta cumplir los cinco minutos minimos de Garmin. La pantalla principal muestra esa hora en "Proximo" y la consola informa de la espera en segundos. El firmware sigue controlando cuando presenta el dialogo; no se garantiza una alarma exacta. Se descarta un evento con mas de 60 segundos de retraso y despues continua el calendario normal.
-
-Para volver al comportamiento normal, cambia `const DEBUG = false;`, ejecuta `make build` y carga de nuevo el ejecutable. **Desactiva DEBUG antes de distribuir o usar la app normalmente.** No modifica tus ajustes ni requiere un nuevo esquema de propiedades.
-
-Cada extremo se guarda como un unico numero de minutos desde medianoche: `startTime` y `endTime`, entre 0 y 1439. Por ejemplo, 09:30 se guarda como 570. En el reloj siempre se muestra y edita HH:MM. En los ajustes de Connect IQ del movil se introduce ese numero de minutos; el SDK no ofrece un tipo de ajuste de hora HH:MM y se evita almacenar o parsear texto.
-
-**Al actualizar desde una version con horas y minutos separados, vuelve a configurar el inicio y el fin.** No hay migracion: las propiedades antiguas dejan de utilizarse y los valores predeterminados nuevos son 09:00 y 21:00. El objetivo, intervalo y dias activos conservan sus propiedades.
-
-## Desarrollo y compilacion
-
-Requisitos:
-
-- [SDK oficial Connect IQ](https://developer.garmin.com/connect-iq/sdk/) y perfil **Forerunner 645**, descargado con SDK Manager.
-- Java 17.
-- VS Code con la extension oficial **Monkey C** (`garmin.monkey-c`).
-- Clave privada de desarrollador en formato DER, fuera del proyecto.
-
-En este entorno se han instalado las herramientas en `~/.local/share/drink-water-tools/`. El Makefile permite reemplazar las rutas; no requiere cambios globales ni sudo:
+Check that the tools are available:
 
 ```sh
-make build
-make test-build
-
-# Para otras ubicaciones:
-make build SDK_HOME="/ruta/al/sdk" JAVA_HOME="/ruta/al/jdk/Contents/Home" \
-  DEVELOPER_KEY="/ruta/privada/developer_key.der"
+git --version
+make --version
+/usr/libexec/java_home -v 17
 ```
 
-La compilacion usa comprobacion estricta de tipos (`-l 3`) y avisos del compilador. El resultado instalable es [bin/drink-water.prg](bin/drink-water.prg).
+The last command should print the Java 17 home directory. If it cannot find Java 17, finish installing the JDK before continuing.
 
-La carpeta [bin/](bin/) contiene archivos generados, no fuentes: ejecutables, metadatos de ajustes, caches e intermedios del compilador. Las compilaciones pueden dejar intermedios de archivos movidos o eliminados; esas caches se pueden borrar y regenerar con `make build`. `make test-build` regenera los binarios de pruebas y `make package` regenera el paquete de distribucion.
+### 2. Clone the application
 
-### Depurar con VS Code
+```sh
+git clone https://github.com/boletus151/drink-water-garmin-app.git
+cd drink-water-garmin-app
+```
 
-1. Abre la carpeta **drink-water_v1** como carpeta de trabajo de VS Code, no solo la carpeta Garmin que la contiene.
-2. Selecciona un SDK activo en SDK Manager y configura en los ajustes personales de la extension Monkey C:
-   - `monkeyC.javaPath`: carpeta raiz del JDK; en este entorno, `~/.local/share/drink-water-tools/java/Contents/Home` (usa la ruta absoluta en VS Code).
-   - `monkeyC.developerKeyPath`: ruta absoluta a la clave DER privada, fuera del repositorio.
-   - `monkeyC.typeCheckLevel`: `Strict`.
-3. En **Ejecutar y depurar**, elige **Depurar Bebe agua (Forerunner 645)** y pulsa **F5**.
-4. La extension oficial compila el proyecto y lo ejecuta en el simulador del 645. La configuracion [launch.json](.vscode/launch.json) detiene la ejecucion al iniciar.
-5. Coloca puntos de interrupcion en los archivos Monkey C, continua con F5 y usa los botones del reloj simulado para reproducir el comportamiento.
+Run the remaining build and simulator commands from this directory, which contains [Makefile](Makefile) and [monkey.jungle](monkey.jungle).
 
-Para los editores por cifras, coloca puntos de interrupcion en `DigitController.change` o `DigitController.confirm`, en [DigitController.mc](source/Controller/Components/DigitController.mc). `TimeController.save`, en [TimeController.mc](source/Controller/Screens/TimeController.mc), guarda la hora completa.
+### 3. Install the Garmin SDK and device profile
 
-No ejecutes al mismo tiempo `run-simulator.sh` y una sesion de depuracion sobre el mismo simulador. Las rutas personales y la clave no forman parte de `launch.json`; `.vscode/settings.json` permanece excluido de Git.
+1. Download the **Connect IQ SDK Manager** for your operating system from [Garmin's SDK page](https://developer.garmin.com/connect-iq/sdk/), accepting Garmin's license terms.
+2. On macOS, open the downloaded disk image, copy SDK Manager to Applications, and launch it.
+3. Sign in with your Garmin Connect account and complete the setup prompts.
+4. In the **SDK** tab, download an SDK and select **Use as SDK** to make it active.
+5. In the **Devices** tab, download **Forerunner 645** (`fr645`), not the Music variant. Wait for both downloads to finish.
+6. Locate the installed SDK directory and keep its absolute path for step 5. It must contain `bin/monkeyc`, `bin/monkeydo`, and `bin/connectiq`; the SDK Manager application itself is not this directory.
 
-Para ejecutar pruebas, abre primero el simulador oficial incluido en el SDK, acepta sus permisos de macOS si los solicita y ejecuta:
+The desktop SDK version is separate from the app's minimum watch API version (**3.1.0**). See Garmin's [Getting Started guide](https://developer.garmin.com/connect-iq/connect-iq-basics/getting-started/) for SDK Manager and extension setup.
+
+### 4. Generate a developer signing key
+
+Garmin requires a private **RSA 4096-bit developer key**, including for simulator builds. Generate it once and keep it outside the repository:
+
+1. Open the cloned project folder in VS Code.
+2. Open **Extensions**, search for **Monkey C**, and install the extension published by **Garmin**.
+3. Create a directory for the key in Terminal:
+
+   ```sh
+   mkdir -p "$HOME/.local/share/drink-water-tools"
+   ```
+
+4. In VS Code, open the command palette with **Cmd+Shift+P** and run **Monkey C: Generate a Developer Key**.
+5. Save the generated DER key as `developer_key.der` in the directory created above. In a file picker, **Cmd+Shift+G** lets you enter `~/.local/share/drink-water-tools/`.
+6. In VS Code Settings, set **Monkey C: Developer Key Path** to that file if it is not already configured.
+7. Run **Monkey C: Verify Installation** from the command palette and resolve any reported SDK, Java, or key issues before continuing.
+
+If you already have a compatible private DER key, reuse it instead of generating another. Never commit or share the key, and keep a secure backup: updates to a published Connect IQ app must use the same signing key.
+
+### 5. Configure and verify the tool paths
+
+In Terminal, replace the SDK placeholder below with the directory from step 3:
+
+```sh
+export SDK_HOME="/absolute/path/to/installed/connectiq-sdk"
+export JAVA_HOME="$(/usr/libexec/java_home -v 17)"
+export DEVELOPER_KEY="$HOME/.local/share/drink-water-tools/developer_key.der"
+
+"$JAVA_HOME/bin/java" -version
+"$SDK_HOME/bin/monkeyc" --version
+test -r "$DEVELOPER_KEY" && echo "Developer key found" || echo "Developer key missing: check DEVELOPER_KEY"
+```
+
+Java should report version 17, `monkeyc` should print its compiler version, and the key check should report `Developer key found`. Do not continue if a command fails; check the installation and paths first. If you saved your key elsewhere, adjust `DEVELOPER_KEY`.
+
+Keep using this Terminal session for the following steps. For future sessions, repeat these exports or add them to your shell configuration (usually `~/.zshrc` on macOS). Setting the key path in VS Code does **not** configure Make: the terminal also needs `DEVELOPER_KEY`.
+
+The [Makefile](Makefile) reads these variables and sets Java for its commands. Without overrides, it defaults to `~/.local/share/drink-water-tools/sdk`, `~/.local/share/drink-water-tools/java/Contents/Home`, and `~/.local/share/drink-water-tools/developer_key.der`. These tools are not included in the repository; the exports above let you use your own installation without moving it.
+
+## Build, run, and install
+
+### How the Garmin SDK is used
+
+The app uses Garmin's SDK to compile Monkey C and XML resources (`monkeyc`), load programs and run tests in the simulator (`monkeydo`), and export a Connect IQ package. At runtime, it uses the Connect IQ application lifecycle, native views/input delegates, persistent properties/storage, and temporal background events. The `Background` permission is declared in [manifest.xml](manifest.xml).
+
+Builds target **fr645**, use strict type checking (`-l 3`), and report compiler warnings (`-w`). [monkey.jungle](monkey.jungle) supplies the source, test, resource, and manifest paths.
+
+### Build and export
+
+```sh
+make build          # bin/drink-water.prg; strict type checking (-l 3)
+```
+
+Wait for a successful build before proceeding. The `.prg` is the program used by the simulator and for USB installation. Optionally, `make package` produces `bin/drink-water.iq` for Connect IQ distribution; this package is not the file to copy directly to the watch.
+
+### Using the simulator
+
+Run these commands from the project directory in the Terminal session configured above:
+
+1. Start Garmin's simulator and wait for its window to open:
+
+   ```sh
+   "$SDK_HOME/bin/connectiq"
+   ```
+
+   On macOS, this launcher opens the SDK's `ConnectIQ.app`.
+
+2. Build and load the app:
+
+   ```sh
+   ./run-simulator.sh
+   ```
+
+   The script builds first, then calls `make run` to load the program on the **fr645** simulated device. It does **not** start the simulator. To reload an already-built program without rebuilding, use `make run`; source or XML changes require a new build.
+
+   You should see the Spanish **Bebe agua** main screen with the goal and schedule. If loading fails, check that the simulator is open, the `fr645` device profile has finished downloading, and the terminal is using the intended SDK.
+
+3. Use the simulated watch buttons as described in **Watch controls and settings**: **START** toggles reminders or confirms a selection, **UP/MENU** opens settings, **UP/DOWN** changes values, and **BACK** returns or cancels. Check the goal, interval, time window, and weekdays, then return to the watch face to exercise background reminders.
+
+For interactive debugging in VS Code, install/configure Garmin's Monkey C extension with your SDK and developer key, select **Debug Bebe agua (Forerunner 645)**, and press **F5**. The configuration in [.vscode/launch.json](.vscode/launch.json) targets `fr645` and pauses at launch (`stopAtLaunch`); resume execution to interact with the app.
+
+`Config.DEBUG` in [source/Model/Config.mc](source/Model/Config.mc) is currently **false**. Enabling it and rebuilding schedules a one-off test reminder approximately 60 seconds after opening, outside normal day/time restrictions but still respecting Garmin's minimum spacing. This is useful for checking the background wake dialog without waiting for a normal reminder slot. Keep it disabled for normal use.
+
+To run the regression tests explicitly, leave the simulator open and execute:
 
 ```sh
 make test
 ```
 
-Las pruebas Monkey C estan en [tests/ScheduleTests.mc](tests/ScheduleTests.mc). Comprueban apertura/refresco de menus, limites inclusivos, cadencia, dias excluidos, configuracion invalida, salto a la siguiente semana, descarte de avisos antiguos, separacion minima y comprobaciones que no desplazan recordatorios.
+The test target compiles a separate `bin/drink-water-tests.prg`, requires a complete `PASSED` summary with no failures/errors, and records output in `bin/test-output.log`; it handles the known macOS `monkeydo` exit-code-1 anomaly only when that summary is present.
 
-En macOS, `monkeydo` de los SDK recientes puede devolver codigo 1 incluso con todas las pruebas aprobadas. El objetivo `test` exige el resumen oficial `PASSED (passed=N, failed=0, errors=0)` con al menos una prueba, informa de esa anomalia y rechaza cualquier otro error. La salida completa queda en `bin/test-output.log`.
+The simulator is useful for UI, settings, and scheduling checks, but does not establish real-watch notification timing, firmware behavior during activities/Do Not Disturb, or battery consumption. Clock changes also need real-device validation.
 
-Para ejecutar la aplicacion en el simulador abierto:
+### Installing on the watch
 
-```sh
-./run-simulator.sh
-```
+1. Confirm that the watch is a **Forerunner 645 (non-Music)** and update its firmware if necessary. Other devices need their own manifest target and compatible build.
+2. Leave `Config.DEBUG` disabled and run `make build`. Use the resulting `bin/drink-water.prg`, not the test program or the `.iq` package.
+3. Connect the watch to your computer with a **USB data cable**. Wait for its storage to appear in Finder; if it does not, check the cable and the watch's USB mode.
+4. Open the watch's **GARMIN/APPS** folder and copy `bin/drink-water.prg` into it.
+5. Safely eject the watch, disconnect the cable, and wait for it to finish processing the app.
+6. On the watch, press **START**, find **Bebe agua** in the app list, and open it once to initialize scheduling.
+7. Check the goal, interval, start/end times, weekdays, and enabled state. Exit with **BACK** to leave reminders running in the background.
 
-El [script](run-simulator.sh) configura Java mediante el Makefile, compila siempre antes de cargar el ejecutable y detiene la ejecucion si la compilacion falla; no abre el simulador. Deja la terminal abierta mientras pruebas.
+If the app does not appear or cannot open, check the device model, firmware, successful build output, and destination folder. The simulator cannot guarantee real-device compatibility or background behavior.
 
-Tambien funciona desde otra carpeta usando su ruta, por ejemplo `./drink-water_v1/run-simulator.sh` desde la carpeta Garmin. Puedes pasar las mismas rutas alternativas que al Makefile: `./run-simulator.sh SDK_HOME="/ruta/al/sdk" JAVA_HOME="/ruta/al/jdk/Contents/Home"`.
-
-Para probar el servicio, configura un horario cercano y un intervalo de 15 minutos, sal de la aplicacion y utiliza los controles de eventos en segundo plano del simulador. Verifica tambien que descartar el dialogo no impide los siguientes avisos.
-
-## Instalacion en el reloj
-
-1. Compila con `make build`.
-2. Conecta el Forerunner 645 por USB.
-3. Copia `bin/drink-water.prg` a `GARMIN/APPS` en el reloj.
-4. Expulsa el reloj de forma segura.
-5. Abre Bebe agua, configura los ajustes y vuelve a la esfera.
-
-La configuracion desde el reloj funciona sin publicar la aplicacion. La configuracion desde el movil depende de que Connect IQ disponga de los metadatos de ajustes; para distribuirlos utiliza el paquete oficial:
-
-```sh
-make package
-```
-
-Esto genera `bin/drink-water.iq`. La publicacion en Connect IQ Store, incluida una beta, es un paso separado y requiere la cuenta de desarrollador y la revision de Garmin. No se publica automaticamente.
-
-## Mantenimiento
-
-- [Config.mc](source/Model/Config.mc): lectura y validacion centralizada de propiedades.
-- [Schedule.mc](source/Service/Schedule.mc): calendario local y registro de eventos.
-- [WaterService.mc](source/Service/WaterService.mc): ejecucion en segundo plano y solicitud de apertura.
-- [DrinkWaterApp.mc](source/App/DrinkWaterApp.mc): ciclo de vida y persistencia del ultimo aviso.
-- [RootView.mc](source/View/Common/RootView.mc): ciclo de visibilidad compartido, sin elementos de pantalla.
-- [WaterFrame.mc](source/View/Components/WaterFrame.mc): composicion del encabezado, errores e indicaciones de las vistas principales.
-- [LayoutView.mc](source/View/Common/LayoutView.mc): acceso tipado a elementos XML y dibujo compatible con API 3.1.
-- [Theme.mc](source/Style/Theme.mc): colores de estado, espaciado y rellenos del menu; el fondo de foco se define en [drawables.xml](resources/drawables.xml).
-- [WaterView.mc](source/View/Screens/WaterView.mc): pantalla principal.
-- [WaterController.mc](source/Controller/Screens/WaterController.mc) y [ReminderController.mc](source/Controller/Screens/ReminderController.mc): controladores de las vistas principales.
-- [ReminderView.mc](source/View/Screens/ReminderView.mc): pantalla del recordatorio, sin horario ni proxima alerta.
-- [SettingsMenu.mc](source/View/Screens/GarminScreens/SettingsMenu.mc) y [DaysMenu.mc](source/View/Screens/GarminScreens/DaysMenu.mc): menus nativos independientes.
-- [SettingsController.mc](source/Controller/Screens/GarminScreens/SettingsController.mc) y [DaysController.mc](source/Controller/Screens/GarminScreens/DaysController.mc): seleccion, apertura de editores y cambio de dias.
-- [NumberEditor.mc](source/View/Components/NumberEditor.mc) y [DigitEditor.mc](source/View/Components/DigitEditor.mc): presentacion compartida de los editores.
-- [NumberController.mc](source/Controller/Components/NumberController.mc) y [DigitController.mc](source/Controller/Components/DigitController.mc): edicion, validacion y botones compartidos.
-- [GoalView.mc](source/View/Screens/GoalView.mc), [IntervalView.mc](source/View/Screens/IntervalView.mc) y [TimeView.mc](source/View/Screens/TimeView.mc): vistas de editores, con sus controladores en [Controller/Screens/](source/Controller/Screens/).
-- [SettingsList.mc](source/View/Components/SettingsList.mc), [SettingsTitle.mc](source/View/Components/SettingsTitle.mc) y [SettingsItem.mc](source/View/Components/SettingsItem.mc): listas, encabezados y filas de los menus.
-- [resources/](resources/): layouts XML, textos, propiedades, ajustes e icono.
-
-En [Schedule.mc](source/Service/Schedule.mc), `localClockSeconds` representa los campos de fecha/hora local para hacer calculos de calendario, y `momentFromLocalClock` los convierte en un instante real, teniendo en cuenta los cambios de hora. `next` calcula el siguiente aviso; `earliestAllowedTime` comparte la espera minima entre debug y el calendario normal; `respectMinimumSpacing` aplaza u omite un aviso cuando es necesario. `eventTime` combina esas reglas con las comprobaciones periodicas, sin cambiar la cadencia.
-
-El esquema de ajustes actual es `schemaVersion=3`, con `startTime` y `endTime` en minutos desde medianoche. Los dias siguen el orden lunes-domingo en propiedades, menus y ajustes del movil. El calendario de Garmin usa domingo=1; [Schedule.mc](source/Service/Schedule.mc) convierte esa numeracion al indice interno lunes=0.
-
-No hay migraciones ni copias temporales. Se aceptan los marcadores de version 1, 2 y 3, pero siempre se leen las propiedades actuales; las cuatro propiedades antiguas de hora/minuto se ignoran. Si actualizas desde una version donde `day1` era domingo, **revisa y configura de nuevo los dias activos**: los valores se conservan, pero su significado cambia.
-
-Mantener identificadores de propiedades conserva sus ajustes al actualizar; un cambio de identificador sin migracion requiere reconfigurar el ajuste, como ocurre con el horario en esta entrega. El ID del manifiesto debe mantenerse estable para conservar la identidad de la aplicacion. Una version desconocida se muestra como error, no se reemplaza silenciosamente.
-
-El Forerunner 645 admite API 3.1: el servicio no escribe en Storage ni en Properties. Devuelve el ultimo aviso con `Background.exit` y el primer plano lo persiste. Los textos usados por el servicio tienen alcance `background`.
-
-Antes de cada entrega:
-
-1. Ejecuta compilacion estricta y pruebas.
-2. Verifica dialogos aceptados/descartados, interruptor, dias excluidos y horario final.
-3. Prueba reinicio, cambio de hora/zona, No molestar y una actividad deportiva.
-4. Mide memoria y bateria en el reloj real.
-5. Prueba actualizar sin perder ajustes.
-6. Actualiza la version y etiqueta la entrega en Git; guarda la clave privada de forma segura fuera del repositorio.
-
-No hay servidor, analitica ni recogida de datos de consumo. Un aviso no confirma que hayas bebido ni calcula recomendaciones medicas.
-
-## Validacion de esta entrega
-
-- Correccion del ajuste circular: se elimina el rectangulo inscrito que hacia fallar la pantalla principal del 645. Se comprueba el contorno por fila y se anade una regresion para contenido alto sin recortes. Aplicacion y pruebas compiladas sin avisos; las pruebas no se han ejecutado. La usuaria confirma que, tras ejecutar de nuevo el script en el simulador del 645, la pantalla principal se muestra correctamente.
-
-- XML nativo con posiciones relativas: los ocho layouts usan etiquetas, areas de texto y fondos compilados por Garmin; las horas inicial y final comparten `time.xml`. Eliminado el motor de distribucion propio; actualizadas las pruebas de posicion y zonas de error. Compilacion estricta de aplicacion y fuentes de pruebas sin avisos, sin ejecutar tests. Pendiente de comprobar visualmente la compilacion final en el simulador; el control automatizado de su ventana ha quedado bloqueado.
-- Distribucion automatica (anterior al XML nativo): compilacion estricta de aplicacion sin avisos. Los nueve layouts no contienen coordenadas; se han anadido casos de centrado, redistribucion de elementos ocultos y resaltado de cifras con distintos tamanos de buffer. No se han ejecutado las pruebas, a peticion de la usuaria; pendiente de comprobacion visual y validacion en otros perfiles.
-
-- Organizacion MVC: compilacion estricta sin avisos y **25 pruebas aprobadas**; las pruebas de edicion ejercitan ahora los controladores y las de renderizado conectan cada vista XML con su controlador. Se mantienen el guardado, la cancelacion, la seleccion de cifras y la programacion de avisos.
-- Layouts XML: compilacion estricta sin avisos y **25 pruebas aprobadas**. Se renderizan en buffers completos las pantallas principal, recordatorio, objetivo, intervalo y ambas horas; tambien los encabezados y filas de menus con cambios de tamano. Se comprueba que el recordatorio no contiene `next` y que los elementos ocultos no se dibujan. Pendiente de revision visual en el reloj o simulador.
-- Separacion de vistas: compilacion estricta y paquete sin avisos; **22 pruebas aprobadas**, incluida la seleccion de la vista del recordatorio y el retorno a la principal al guardar. Pendiente de comprobacion visual al aceptar el dialogo de Garmin.
-- Modo DEBUG: compilacion estricta y paquete generados sin avisos; **21 pruebas aprobadas**, incluidas la espera exacta de 60 segundos, el limite minimo de Garmin, la desactivacion del modo y la conservacion/caducidad del plazo. La presentacion real del aviso sigue pendiente de prueba manual.
-- Mejora de color: compilacion estricta de aplicacion y pruebas sin avisos; **18 pruebas aprobadas**, sin fallos ni errores. La comprobacion visual de la nueva paleta queda pendiente: la automatizacion del simulador fue bloqueada por la proteccion de foco de macOS.
-- Compilacion estricta sin avisos con SDK oficial **9.3.0**, perfil **fr645 (3.1.6)**.
-- En una entrega anterior se aprobaron **18 pruebas**, sin fallos ni errores. Las pruebas de horario se han actualizado para la seleccion restringida de cifras y el almacenamiento en minutos desde medianoche; no se han ejecutado en esta mejora, a peticion de la usuaria.
-- Verificados en la entrega anterior: pantalla sin recortes, interruptor, apertura de ajustes, edicion y guardado del objetivo e intervalo.
-- Observado en la entrega anterior un aviso autonomo a la hora prevista con la aplicacion cerrada: "Background Process Wake / Recuerda beber agua"; descartado correctamente.
-- En la mejora anterior se comprobo el aviso de intervalo antiguo fuera de rango. Los horarios usan ahora dos editores HH:MM; la comprobacion visual del resaltado y los botones queda disponible para prueba manual.
-- Generados el ejecutable USB y el paquete Connect IQ.
-
-Pendiente de validar en un Forerunner 645 fisico: comportamiento del firmware durante actividades y No molestar, reinicios, cambios de hora y consumo real de bateria. No se ha instalado ni publicado automaticamente.
-
-## Referencias oficiales
-
-- [Background](https://developer.garmin.com/connect-iq/api-docs/Toybox/Background.html)
-- [Properties](https://developer.garmin.com/connect-iq/api-docs/Toybox/Application/Properties.html)
-- [Storage](https://developer.garmin.com/connect-iq/api-docs/Toybox/Application/Storage.html)
-- [Pruebas unitarias](https://developer.garmin.com/connect-iq/core-topics/unit-testing/)
+Mobile settings depend on Connect IQ settings metadata; USB installation is not Connect IQ Store publication and does not by itself guarantee access to those settings in the mobile app. All settings can be configured on the watch. Store publication is a separate, manual step. Generated files live in `bin/`, not in the source tree.

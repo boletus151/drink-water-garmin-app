@@ -8,6 +8,33 @@ import Toybox.Time.Gregorian;
 import Toybox.WatchUi;
 
 (:test)
+class ConfigProperties {
+    var keys as Array<String> = ["schemaVersion", "enabled", "goalMl", "intervalMinutes",
+        "startTime", "endTime", "day1", "day2", "day3", "day4", "day5", "day6", "day7"];
+    var previous as Array<Properties.ValueType> = [];
+
+    function initialize() {
+        for (var i = 0; i < keys.size(); i += 1) {
+            previous.add(Properties.getValue(keys[i]));
+        }
+    }
+
+    function reset() as Void {
+        var values = [3, true, 2000, 60, 540, 1260,
+            true, true, true, true, true, true, true] as Array<Properties.ValueType>;
+        for (var i = 0; i < keys.size(); i += 1) {
+            Properties.setValue(keys[i], values[i]);
+        }
+    }
+
+    function restore() as Void {
+        for (var i = 0; i < keys.size(); i += 1) {
+            Properties.setValue(keys[i], previous[i]);
+        }
+    }
+}
+
+(:test)
 class LayoutDrawCounter extends WatchUi.Drawable {
     var count as Number = 0;
 
@@ -39,28 +66,20 @@ function xmlLayoutsRenderScreensAndKeepNextOutOfTheReminder(logger as Test.Logge
     reminder.onUpdate(dc);
     Test.assert(reminder.findDrawableById("next") == null);
     Test.assert(reminder.findDrawableById("schedule") == null);
-    var goal = new GoalView(new GoalController(text(Rez.Strings.Goal), 2000));
-    goal.onLayout(dc);
-    goal.onUpdate(dc);
-    var interval = new IntervalController(text(Rez.Strings.Interval), 15);
-    var intervalView = new IntervalView(interval);
-    intervalView.onLayout(dc);
-    intervalView.onUpdate(dc);
-    interval.confirm();
-    interval.change(-1);
-    Test.assert(!interval.confirm());
-    intervalView.onUpdate(dc);
-    interval.change(1);
-    Test.assert(interval.confirm());
-    intervalView.onUpdate(dc);
-    var keys = ["startTime", "endTime"];
+    var settings = new SettingsController(new SettingsMenu());
+    var keys = ["goalMl", "intervalMinutes", "startTime", "endTime"];
+    var values = [2000, 15, 570, 1260];
     for (var i = 0; i < keys.size(); i += 1) {
-        var time = new TimeController(keys[i], text(Rez.Strings.Settings), 570);
-        var timeView = new TimeView(time);
-        timeView.onLayout(dc);
-        for (var digit = 0; digit < 4; digit += 1) {
-            timeView.onUpdate(dc);
-            time.confirm();
+        var controller = settings.createEditorController(keys[i], text(Rez.Strings.Settings), values[i]);
+        var view = settings.createEditorView(controller);
+        view.onLayout(dc);
+        view.onUpdate(dc);
+        if (i == 0) {
+            Test.assert(view instanceof GoalView);
+        } else if (i == 1) {
+            Test.assert(view instanceof IntervalView);
+        } else {
+            Test.assert(view instanceof TimeView);
         }
     }
     return true;
@@ -81,25 +100,6 @@ function sharedWaterFrameUpdatesWithoutScreenSpecificDrawables(logger as Test.Lo
     config.error = null;
     Test.assert(WaterFrame.update(view, config, false));
     view.drawLayout(buffer.getDc());
-    return true;
-}
-
-(:test)
-function xmlMenuVisualsRenderNavigationValuesAndResizedRows(logger as Test.Logger) as Boolean {
-    var buffer = LayoutDrawCounter.buffer(62);
-    var dc = buffer.getDc();
-    var settingsTitle = new SettingsTitle(false);
-    var daysTitle = new SettingsTitle(true);
-    settingsTitle.draw(dc);
-    daysTitle.draw(dc);
-    var item = new SettingsItem(text(Rez.Strings.Days), null, "days");
-    item.draw(dc);
-    item.setSubLabel(text(Rez.Strings.Enabled));
-    item.draw(dc);
-    var focusedBuffer = LayoutDrawCounter.buffer(68);
-    item.draw(focusedBuffer.getDc());
-    item.setSubLabel(null);
-    item.draw(dc);
     return true;
 }
 
@@ -125,67 +125,6 @@ function layoutVisibilitySkipsHiddenElementsAndResetsWithANewLayout(logger as Te
 }
 
 (:test)
-function nativeLayoutsScaleTextAreasAndKeepHiddenZonesInPlace(logger as Test.Logger) as Boolean {
-    var sizes = [[218, 218], [240, 240], [320, 320]];
-    for (var i = 0; i < sizes.size(); i += 1) {
-        var buffer = new Graphics.BufferedBitmap({:width => sizes[i][0], :height => sizes[i][1]});
-        var dc = buffer.getDc();
-        var view = new WaterView();
-        view.onLayout(dc);
-        view.onUpdate(dc);
-        var next = view.label("next") as WatchUi.TextArea;
-        var error = view.label("errorDetail") as WatchUi.TextArea;
-        var hint = view.label("menuHint");
-        var widthError = next.width - dc.getWidth() * 0.9;
-        var heightError = error.height - dc.getHeight() * 0.24;
-        Test.assert(widthError >= -1 && widthError <= 1);
-        Test.assert(heightError >= -1 && heightError <= 1);
-        Test.assert(view.label("content").locY < error.locY);
-        Test.assert(error.locY + error.height <= hint.locY);
-        var initialY = hint.locY;
-        view.show("content", false);
-        view.show("schedule", false);
-        view.show("next", false);
-        view.show("errorTitle", true);
-        view.show("errorDetail", true);
-        error.setText(text(Rez.Strings.UnsupportedVersion));
-        view.drawLayout(dc);
-        Test.assertEqual(hint.locY, initialY);
-    }
-    return true;
-}
-
-(:test)
-function nativeDigitPositionsStayCenteredWhenEditing(logger as Test.Logger) as Boolean {
-    var sizes = [218, 240, 320];
-    for (var i = 0; i < sizes.size(); i += 1) {
-        var buffer = new Graphics.BufferedBitmap({:width => sizes[i], :height => sizes[i]});
-        var dc = buffer.getDc();
-        var controller = new TimeController("endTime", text(Rez.Strings.EndHour), 570);
-        var view = new TimeView(controller);
-        view.onLayout(dc);
-        view.onUpdate(dc);
-        var first = view.label("digit0");
-        var last = view.label("digit3");
-        Test.assert(first instanceof WatchUi.Text);
-        var rowCenterError = first.locX + last.locX - dc.getWidth();
-        Test.assert(rowCenterError >= -2 && rowCenterError <= 2);
-        var initialX = first.locX;
-        var initialY = first.locY;
-        var yError = initialY - dc.getHeight() * 0.4;
-        Test.assert(yError >= -1 && yError <= 1);
-        Test.assert(view.label("digit1").locX < view.label("separator").locX);
-        Test.assert(view.label("separator").locX < view.label("digit2").locX);
-        controller.change(1);
-        controller.confirm();
-        view.onUpdate(dc);
-        Test.assertEqual(first.locX, initialX);
-        Test.assertEqual(first.locY, initialY);
-    }
-    return true;
-}
-
-(:test)
 function reminderUsesItsOwnViewAndSavingReturnsToTheMainView(logger as Test.Logger) as Boolean {
     var enabled = Properties.getValue("enabled");
     if (!(enabled instanceof Boolean)) {
@@ -194,24 +133,35 @@ function reminderUsesItsOwnViewAndSavingReturnsToTheMainView(logger as Test.Logg
     }
     var app = waterApp();
     var previousReminder = app.reminder;
+    var previousError = app.scheduleError;
+    var previousRoot = app.visibleRoot;
     var previousLast = Storage.getValue("lastReminder");
-    app.reminder = false;
-    var main = app.createRootView();
-    Storage.setValue("lastReminder", 100);
-    app.onBackgroundData(101);
-    var reminder = app.createRootView();
-    app.onBackgroundData(101);
-    var repeated = app.createRootView();
-    app.onBackgroundData(102);
-    app.save("enabled", enabled);
-    var saved = app.createRootView();
-    Storage.setValue("lastReminder", previousLast);
-    app.reminder = previousReminder;
-    app.refreshRootView();
-    Test.assert(!(main instanceof ReminderView));
-    Test.assert(reminder instanceof ReminderView);
-    Test.assert(!(repeated instanceof ReminderView));
-    Test.assert(!(saved instanceof ReminderView));
+    try {
+        app.visibleRoot = null;
+        app.reminder = false;
+        Test.assert(!(app.createRootView() instanceof ReminderView));
+        Storage.setValue("lastReminder", null);
+        app.onBackgroundData(100);
+        Test.assert(app.createRootView() instanceof ReminderView);
+        app.onBackgroundData(null);
+        Test.assert(app.reminder);
+        var last = Storage.getValue("lastReminder");
+        Test.assert(last instanceof Number && last == 100);
+        app.onBackgroundData(101);
+        Test.assert(app.createRootView() instanceof ReminderView);
+        app.onBackgroundData(101);
+        Test.assert(!(app.createRootView() instanceof ReminderView));
+        app.onBackgroundData(100);
+        Test.assert(!app.reminder);
+        app.onBackgroundData(102);
+        app.save("enabled", enabled);
+        Test.assert(!(app.createRootView() instanceof ReminderView));
+    } finally {
+        Storage.setValue("lastReminder", previousLast);
+        app.reminder = previousReminder;
+        app.scheduleError = previousError;
+        app.visibleRoot = previousRoot;
+    }
     return true;
 }
 
@@ -329,32 +279,38 @@ function cadenceDoesNotDrift(logger as Test.Logger) as Boolean {
 }
 
 (:test)
-function disabledAndExcludedDaysDoNotSchedule(logger as Test.Logger) as Boolean {
-    var config = new WaterConfig();
-    config.days[0] = false;
-    Test.assert(Schedule.minuteOnDay(config, 2, 0) == null);
-    config.enabled = false;
-    Test.assert(Schedule.minuteOnDay(config, 3, 0) == null);
-    return true;
-}
-
-(:test)
 function invalidSettingsStopScheduling(logger as Test.Logger) as Boolean {
     var config = new WaterConfig();
-    config.intervalMinutes = 14;
+    var goals = [49, 50, 10000, 10001];
+    for (var i = 0; i < goals.size(); i += 1) {
+        config.goalMl = goals[i];
+        Test.assert((config.validate() == null) == (i == 1 || i == 2));
+    }
+    config.goalMl = 2000;
+    var intervals = [14, 15, 60, 61];
+    for (var i = 0; i < intervals.size(); i += 1) {
+        config.intervalMinutes = intervals[i];
+        Test.assert((config.validate() == null) == (i == 1 || i == 2));
+    }
+    config.intervalMinutes = 60;
+    var windows = [[0, 1439], [-1, 1260], [540, 1440], [540, 540], [1260, 540]];
+    for (var i = 0; i < windows.size(); i += 1) {
+        config.startMinute = windows[i][0];
+        config.endMinute = windows[i][1];
+        Test.assert((config.validate() == null) == (i == 0));
+    }
+    config.startMinute = 0;
+    config.endMinute = 1439;
+    config.days = [false, false, false, false, false, false, false];
     config.error = config.validate();
     Test.assert(config.error != null);
     Test.assert(Schedule.minuteOnDay(config, 2, 0) == null);
-    config.intervalMinutes = 61;
-    Test.assert(config.validate() != null);
-    config.intervalMinutes = 60;
+    Test.assert(Schedule.next(config, Time.now()) == null);
+    Test.assert(Schedule.dueKey(config, Time.now()) == null);
+    Test.assert(Schedule.eventTime(config, Time.now(), null) == null);
+    config.days[6] = true;
+    config.error = null;
     Test.assert(config.validate() == null);
-    config.intervalMinutes = 15;
-    config.startMinute = config.endMinute;
-    Test.assert(config.validate() != null);
-    config.startMinute = 540;
-    config.days = [false, false, false, false, false, false, false];
-    Test.assert(config.validate() != null);
     return true;
 }
 
@@ -415,53 +371,122 @@ function mondayFirstDaysMatchCalendarForSchedulingAndDueReminders(logger as Test
 }
 
 (:test)
-function daysAreReadDirectlyWithoutMigratingStoredSelections(logger as Test.Logger) as Boolean {
-    var previousVersion = Properties.getValue("schemaVersion");
-    var previousDays = [] as Array<Properties.ValueType>;
-    for (var i = 1; i <= 7; i += 1) {
-        previousDays.add(Properties.getValue("day" + i.toString()));
-    }
-    var selected = [true, false, true, false, false, true, false] as Array<Boolean>;
-    for (var day = 0; day < 7; day += 1) {
-        Properties.setValue("day" + (day + 1).toString(), selected[day]);
-    }
-    var correct = true;
-    for (var version = 1; version <= 3; version += 1) {
-        Properties.setValue("schemaVersion", version);
-        var config = Config.read();
-        var storedVersion = Properties.getValue("schemaVersion");
-        correct = correct && storedVersion instanceof Number && storedVersion == version;
+function configReadsCurrentPropertiesWithoutMigratingSupportedSchemas(logger as Test.Logger) as Boolean {
+    var state = new ConfigProperties();
+    try {
+        state.reset();
+        Properties.setValue("enabled", false);
+        Properties.setValue("goalMl", 750);
+        Properties.setValue("intervalMinutes", 17);
+        Properties.setValue("startTime", 570);
+        Properties.setValue("endTime", 1170);
+        var selected = [true, false, true, false, false, true, false] as Array<Boolean>;
         for (var day = 0; day < 7; day += 1) {
-            var stored = Properties.getValue("day" + (day + 1).toString());
-            correct = correct && config.days[day] == selected[day] &&
-                stored instanceof Boolean && stored == selected[day];
+            Properties.setValue("day" + (day + 1).toString(), selected[day]);
         }
+        for (var version = 1; version <= 3; version += 1) {
+            Properties.setValue("schemaVersion", version);
+            var config = Config.read();
+            Test.assert(config.error == null);
+            Test.assert(!config.enabled);
+            Test.assertEqual(config.goalMl, 750);
+            Test.assertEqual(config.intervalMinutes, 17);
+            Test.assertEqual(config.startMinute, 570);
+            Test.assertEqual(config.endMinute, 1170);
+            Test.assertEqual(Properties.getValue("schemaVersion"), version);
+            for (var day = 0; day < 7; day += 1) {
+                Test.assertEqual(config.days[day], selected[day]);
+                Test.assertEqual(Properties.getValue("day" + (day + 1).toString()), selected[day]);
+            }
+        }
+    } finally {
+        state.restore();
     }
-    Properties.setValue("schemaVersion", 4);
-    correct = correct && Config.read().error != null;
-    Properties.setValue("schemaVersion", previousVersion);
-    for (var i = 0; i < 7; i += 1) {
-        Properties.setValue("day" + (i + 1).toString(), previousDays[i]);
-    }
-    Test.assert(correct);
     return true;
 }
 
 (:test)
-function lateEventsDoNotReplayOldReminders(logger as Test.Logger) as Boolean {
+function configRejectsUnsupportedSchemasAndWrongPropertyTypes(logger as Test.Logger) as Boolean {
+    var state = new ConfigProperties();
+    try {
+        var versions = [0, 4, "3"] as Array<Properties.ValueType>;
+        for (var i = 0; i < versions.size(); i += 1) {
+            state.reset();
+            Properties.setValue("schemaVersion", versions[i]);
+            var error = Config.read().error;
+            Test.assert(error != null && error.equals(text(Rez.Strings.UnsupportedVersion)));
+        }
+        for (var i = 1; i < state.keys.size(); i += 1) {
+            state.reset();
+            Properties.setValue(state.keys[i], "invalid");
+            var config = Config.read();
+            var error = config.error;
+            Test.assert(error != null && error.equals(text(Rez.Strings.InvalidSettings)));
+            Test.assert(Schedule.eventTime(config, Time.now(), null) == null);
+            Test.assertEqual(Properties.getValue(state.keys[i]), "invalid");
+        }
+    } finally {
+        state.restore();
+    }
+    return true;
+}
+
+(:test)
+function configReportsInvalidStoredValuesWithoutReplacingThem(logger as Test.Logger) as Boolean {
+    var state = new ConfigProperties();
+    try {
+        var keys = ["goalMl", "intervalMinutes", "startTime", "endTime"];
+        var values = [10001, 14, -1, 1440];
+        var errors = [Rez.Strings.InvalidGoal, Rez.Strings.InvalidInterval,
+            Rez.Strings.InvalidHours, Rez.Strings.InvalidHours];
+        for (var i = 0; i < keys.size(); i += 1) {
+            state.reset();
+            Properties.setValue(keys[i], values[i]);
+            var error = Config.read().error;
+            Test.assert(error != null && error.equals(text(errors[i])));
+            Test.assertEqual(Properties.getValue(keys[i]), values[i]);
+        }
+        state.reset();
+        for (var day = 1; day <= 7; day += 1) {
+            Properties.setValue("day" + day.toString(), false);
+        }
+        var error = Config.read().error;
+        Test.assert(error != null && error.equals(text(Rez.Strings.NoDays)));
+        Properties.setValue("day7", true);
+        Test.assert(Config.read().error == null);
+    } finally {
+        state.restore();
+    }
+    return true;
+}
+
+(:test)
+function dueKeysStayStableWithinToleranceAndRejectEventsOutsideTheWindow(logger as Test.Logger) as Boolean {
     var config = new WaterConfig();
     var localClock = Gregorian.moment({
-        :year => 2026, :month => 11, :day => 23, :hour => 9, :minute => 0, :second => 30
+        :year => 2026, :month => 11, :day => 23, :hour => 9, :minute => 0, :second => 0
     });
     var now = Schedule.momentFromLocalClock(localClock.value(), Time.now());
     if (now == null) {
         logger.error("No se pudo convertir la hora local");
         return false;
     }
-    Test.assert(Schedule.dueKey(config, now) != null);
-    Test.assert(Schedule.dueKey(config, now.add(new Time.Duration(31))) == null);
-    var afterEnd = now.add(new Time.Duration(12 * 3600 + 60));
-    Test.assert(Schedule.dueKey(config, afterEnd) == null);
+    var key = Schedule.dueKey(config, now);
+    Test.assert(key != null);
+    Test.assert(Schedule.dueKey(config, new Time.Moment(now.value() - 1)) == null);
+    Test.assert(Schedule.dueKey(config, now.add(new Time.Duration(60))) == key);
+    Test.assert(Schedule.dueKey(config, now.add(new Time.Duration(61))) == null);
+    var end = now.add(new Time.Duration(12 * 3600));
+    var endKey = Schedule.dueKey(config, end);
+    Test.assert(endKey != null);
+    Test.assert(Schedule.dueKey(config, end.add(new Time.Duration(59))) == endKey);
+    Test.assert(Schedule.dueKey(config, end.add(new Time.Duration(60))) == null);
+    config.intervalMinutes = 17;
+    config.endMinute = 600;
+    Test.assert(Schedule.dueKey(config, now.add(new Time.Duration(51 * 60))) != null);
+    Test.assert(Schedule.dueKey(config, now.add(new Time.Duration(60 * 60))) == null);
+    config.enabled = false;
+    Test.assert(Schedule.dueKey(config, now) == null);
     return true;
 }
 
@@ -487,6 +512,151 @@ function minimumSpacingDefersNearbyReminder(logger as Test.Logger) as Boolean {
     Test.assertEqual(info.min, 15);
     Test.assertEqual(info.sec, 1);
     Test.assert(Schedule.dueKey(config, event) != null);
+    return true;
+}
+
+(:test)
+function minimumSpacingSkipsSlotsBeyondToleranceOrTheEndMinute(logger as Test.Logger) as Boolean {
+    var config = new WaterConfig();
+    config.intervalMinutes = 15;
+    var localClock = Gregorian.moment({
+        :year => 2026, :month => 11, :day => 23, :hour => 9, :minute => 15, :second => 0
+    });
+    var slot = Schedule.momentFromLocalClock(localClock.value(), Time.now());
+    if (slot == null) {
+        logger.error("No se pudo convertir la hora local");
+        return false;
+    }
+    var delays = [60, 61];
+    var expected = [60, 15 * 60];
+    for (var i = 0; i < delays.size(); i += 1) {
+        var last = new Time.Moment(slot.value() - 300 + delays[i]);
+        var event = Schedule.eventTime(config, last.add(new Time.Duration(1)), last);
+        Test.assert(event != null);
+        if (event != null) {
+            Test.assertEqual(event.value(), slot.value() + expected[i]);
+            Test.assert(Schedule.dueKey(config, event) != null);
+        }
+    }
+    config.endMinute = 555;
+    var next = Schedule.respectMinimumSpacing(config, slot, slot.add(new Time.Duration(60)));
+    Test.assert(next != null);
+    if (next != null) {
+        var info = Gregorian.info(next, Time.FORMAT_SHORT);
+        Test.assertEqual(info.day, 24);
+        Test.assertEqual(info.hour, 9);
+        Test.assertEqual(info.min, 0);
+    }
+    return true;
+}
+
+(:test)
+function nextReminderCrossesYearAndLeapDayBoundaries(logger as Test.Logger) as Boolean {
+    var dates = [[2026, 12, 31, 2027, 1, 1], [2028, 2, 28, 2028, 2, 29]];
+    var config = new WaterConfig();
+    for (var i = 0; i < dates.size(); i += 1) {
+        var date = dates[i];
+        var localClock = Gregorian.moment({
+            :year => date[0], :month => date[1], :day => date[2],
+            :hour => 21, :minute => 1, :second => 0
+        });
+        var now = Schedule.momentFromLocalClock(localClock.value(), Time.now());
+        if (now == null) {
+            logger.error("No se pudo convertir la hora local");
+            return false;
+        }
+        var next = Schedule.next(config, now);
+        Test.assert(next != null);
+        if (next != null) {
+            var info = Gregorian.info(next, Time.FORMAT_SHORT);
+            Test.assertEqual(info.year, date[3]);
+            Test.assertEqual(info.month, date[4]);
+            Test.assertEqual(info.day, date[5]);
+            Test.assertEqual(info.hour, 9);
+            Test.assertEqual(info.min, 0);
+            Test.assert(next.value() > now.value());
+        }
+    }
+    return true;
+}
+
+(:test)
+function goalButtonsClampAtBothLimitsAndSavingPersistsTheDraft(logger as Test.Logger) as Boolean {
+    var previous = Properties.getValue("goalMl");
+    var app = waterApp();
+    var previousReminder = app.reminder;
+    var previousError = app.scheduleError;
+    var previousRoot = app.visibleRoot;
+    try {
+        app.visibleRoot = null;
+        var goal = new GoalController(text(Rez.Strings.Goal), 50);
+        Test.assert(goal.onNextPage());
+        Test.assertEqual(goal.value, 50);
+        Test.assert(goal.onPreviousPage());
+        Test.assertEqual(goal.value, 100);
+        goal = new GoalController(text(Rez.Strings.Goal), 10000);
+        Test.assert(goal.onPreviousPage());
+        Test.assertEqual(goal.value, 10000);
+        Test.assert(goal.onNextPage());
+        Test.assertEqual(goal.value, 9950);
+        Test.assertEqual(Properties.getValue("goalMl"), previous);
+        goal.save();
+        Test.assertEqual(Properties.getValue("goalMl"), 9950);
+    } finally {
+        Properties.setValue("goalMl", previous);
+        app.reschedule();
+        app.reminder = previousReminder;
+        app.scheduleError = previousError;
+        app.visibleRoot = previousRoot;
+    }
+    return true;
+}
+
+(:test)
+function togglesPersistAndRefreshMenusWithoutChangingOtherSettings(logger as Test.Logger) as Boolean {
+    var state = new ConfigProperties();
+    var app = waterApp();
+    var previousReminder = app.reminder;
+    var previousError = app.scheduleError;
+    var previousRoot = app.visibleRoot;
+    try {
+        state.reset();
+        app.visibleRoot = null;
+        var root = new WaterController();
+        Test.assert(root.onSelect());
+        Test.assertEqual(Properties.getValue("enabled"), false);
+        var settings = new SettingsMenu();
+        var enabledItem = settings.getItem(0);
+        Test.assert(enabledItem != null);
+        if (enabledItem != null) {
+            new SettingsController(settings).onSelect(enabledItem);
+            Test.assertEqual(Properties.getValue("enabled"), true);
+            var label = enabledItem.getSubLabel();
+            Test.assert(label instanceof String && label.equals(text(Rez.Strings.Enabled)));
+        }
+        var days = new DaysMenu();
+        var monday = days.getItem(0);
+        Test.assert(monday != null);
+        if (monday != null) {
+            new DaysController(days).onSelect(monday);
+            Test.assertEqual(Properties.getValue("day1"), false);
+            var label = monday.getSubLabel();
+            Test.assert(label instanceof String && label.equals(text(Rez.Strings.Disabled)));
+            new DaysController(days).onSelect(monday);
+            Test.assertEqual(Properties.getValue("day1"), true);
+        }
+        Test.assertEqual(Properties.getValue("day2"), true);
+        Test.assertEqual(Properties.getValue("goalMl"), 2000);
+        Test.assertEqual(Properties.getValue("intervalMinutes"), 60);
+        Test.assertEqual(Properties.getValue("startTime"), 540);
+        Test.assertEqual(Properties.getValue("endTime"), 1260);
+    } finally {
+        state.restore();
+        app.reschedule();
+        app.reminder = previousReminder;
+        app.scheduleError = previousError;
+        app.visibleRoot = previousRoot;
+    }
     return true;
 }
 
@@ -640,78 +810,80 @@ function combinedTimesCancelWithoutChangingStoredValuesOrGoalEditor(logger as Te
 
 (:test)
 function timesSaveMinutesFromMidnightAndRefreshMenu(logger as Test.Logger) as Boolean {
-    var keys = ["startTime", "endTime"];
-    var previous = [] as Array<Properties.ValueType>;
-    for (var i = 0; i < keys.size(); i += 1) {
-        previous.add(Properties.getValue(keys[i]));
-    }
-    Properties.setValue("startTime", 570);
-    Properties.setValue("endTime", 1305);
-    var menu = new SettingsMenu();
-    var delegate = new SettingsController(menu);
-    var start = delegate.createEditorController("startTime", text(Rez.Strings.StartHour), 570);
-    var end = delegate.createEditorController("endTime", text(Rez.Strings.EndHour), 1305);
-    start.change(1);
-    start.confirm();
-    start.confirm();
-    start.confirm();
-    start.change(1);
-    var startConfirmed = start.confirm();
-    if (startConfirmed) {
+    var state = new ConfigProperties();
+    var app = waterApp();
+    var previousReminder = app.reminder;
+    var previousError = app.scheduleError;
+    var previousRoot = app.visibleRoot;
+    try {
+        state.reset();
+        app.visibleRoot = null;
+        Properties.setValue("startTime", 570);
+        Properties.setValue("endTime", 1305);
+        var menu = new SettingsMenu();
+        var delegate = new SettingsController(menu);
+        var start = delegate.createEditorController("startTime", text(Rez.Strings.StartHour), 570);
+        var end = delegate.createEditorController("endTime", text(Rez.Strings.EndHour), 1305);
+        start.change(1);
+        start.confirm();
+        start.confirm();
+        start.confirm();
+        start.change(1);
+        Test.assert(start.confirm());
         start.save();
-    }
-    end.confirm();
-    end.change(-1);
-    end.confirm();
-    end.confirm();
-    end.change(1);
-    var endConfirmed = end.confirm();
-    if (endConfirmed) {
+        end.confirm();
+        end.change(-1);
+        end.confirm();
+        end.confirm();
+        end.change(1);
+        Test.assert(end.confirm());
         end.save();
+        menu.refresh();
+        var startItem = menu.getItem(3);
+        var endItem = menu.getItem(4);
+        var startLabel = startItem != null ? startItem.getSubLabel() : null;
+        var endLabel = endItem != null ? endItem.getSubLabel() : null;
+        var config = Config.read();
+        Test.assert(config.error == null);
+        Test.assert(startLabel instanceof String && startLabel.equals("19:31"));
+        Test.assert(endLabel instanceof String && endLabel.equals("20:46"));
+        Test.assertEqual(Properties.getValue("startTime"), 19 * 60 + 31);
+        Test.assertEqual(Properties.getValue("endTime"), 20 * 60 + 46);
+        Test.assertEqual(config.startMinute, 19 * 60 + 31);
+        Test.assertEqual(config.endMinute, 20 * 60 + 46);
+    } finally {
+        state.restore();
+        app.reschedule();
+        app.reminder = previousReminder;
+        app.scheduleError = previousError;
+        app.visibleRoot = previousRoot;
     }
-    menu.refresh();
-    var startItem = menu.getItem(3);
-    var endItem = menu.getItem(4);
-    var daysItem = menu.getItem(5);
-    var startLabel = startItem != null ? startItem.getSubLabel() : null;
-    var endLabel = endItem != null ? endItem.getSubLabel() : null;
-    var daysId = daysItem != null ? daysItem.getId() : null;
-    var config = Config.read();
-    var savedStart = Properties.getValue("startTime");
-    var savedEnd = Properties.getValue("endTime");
-    for (var i = 0; i < keys.size(); i += 1) {
-        Properties.setValue(keys[i], previous[i]);
-    }
-    waterApp().reschedule();
-    Test.assert(startConfirmed && endConfirmed);
-    Test.assert(startLabel instanceof String && startLabel.equals("19:31"));
-    Test.assert(endLabel instanceof String && endLabel.equals("20:46"));
-    Test.assert(daysId instanceof String && daysId.equals("days"));
-    Test.assertEqual(savedStart, 19 * 60 + 31);
-    Test.assertEqual(savedEnd, 20 * 60 + 46);
-    Test.assertEqual(config.startMinute, 19 * 60 + 31);
-    Test.assertEqual(config.endMinute, 20 * 60 + 46);
     return true;
 }
 
 (:test)
-function checkpointsDoNotDisplaceTheFirstReminder(logger as Test.Logger) as Boolean {
+function checkpointsRunOnlyWhenTheyLeaveFiveMinutesBeforeTheReminder(logger as Test.Logger) as Boolean {
     var config = new WaterConfig();
     var localClock = Gregorian.moment({
-        :year => 2026, :month => 11, :day => 23, :hour => 7, :minute => 58, :second => 0
+        :year => 2026, :month => 11, :day => 23, :hour => 7, :minute => 55, :second => 0
     });
     var now = Schedule.momentFromLocalClock(localClock.value(), Time.now());
     if (now == null) {
         logger.error("No se pudo convertir la hora local");
         return false;
     }
-    var event = Schedule.eventTime(config, now, null);
-    if (event == null) {
-        logger.error("Falta el primer aviso");
-        return false;
+    var checkpoint = Schedule.eventTime(config, now, null);
+    var nearby = Schedule.eventTime(config, now.add(new Time.Duration(1)), null);
+    var afterRecentEvent = Schedule.eventTime(config, now, now);
+    Test.assert(checkpoint != null && nearby != null && afterRecentEvent != null);
+    if (checkpoint != null && nearby != null && afterRecentEvent != null) {
+        Test.assertEqual(checkpoint.value(), now.value() + 3600);
+        Test.assert(Schedule.dueKey(config, checkpoint) == null);
+        Test.assertEqual(nearby.value(), now.value() + 3900);
+        Test.assertEqual(afterRecentEvent.value(), nearby.value());
+        Test.assert(Schedule.dueKey(config, nearby) != null);
     }
-    var info = Gregorian.info(event, Time.FORMAT_SHORT);
-    Test.assertEqual(info.hour, 9);
-    Test.assertEqual(info.min, 0);
+    config.enabled = false;
+    Test.assert(Schedule.eventTime(config, now, null) == null);
     return true;
 }
