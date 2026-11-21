@@ -69,7 +69,7 @@ La pantalla principal, la del recordatorio, los menus de ajustes y dias, y los e
 
 La pantalla principal y el recordatorio son vistas distintas. La principal muestra el objetivo diario y el proximo aviso. El recordatorio muestra "Recuerda beber agua" y el horario, pero no calcula ni muestra la proxima alerta. Ambas comparten el encabezado, los errores y los botones. Guardar un ajuste vuelve al estado de pantalla principal; recibir un aviso nuevo selecciona la vista del recordatorio sin interrumpir un editor abierto.
 
-`WaterView` y `ReminderView` heredan de `BaseWaterView`, no una de la otra. La base actualiza el marco compartido mediante `updateFrame`; cada vista carga su layout XML en `onLayout`, actualiza los datos en `onUpdate` y oculta su contenido si hay un error.
+`WaterView` y `ReminderView` heredan de `BaseWaterView`, no una de la otra. La base actualiza el marco compartido mediante `updateFrame`; cada vista carga su layout XML en `onLayout` mediante `setWaterLayout`, que incorpora el componente de error compartido, actualiza los datos en `onUpdate` y oculta su contenido si hay un error.
 
 El dialogo inicial "Recuerda beber agua" y los ajustes del movil conservan la apariencia del sistema Garmin: la aplicacion no controla sus colores.
 
@@ -77,14 +77,17 @@ La distribucion, las fuentes y los colores iniciales se definen en [resources/la
 
 | Pantalla o elemento | XML |
 | --- | --- |
-| Principal | [water.xml](resources/layouts/water.xml) |
-| Recordatorio, sin proxima alerta | [reminder.xml](resources/layouts/reminder.xml) |
-| Objetivo diario | [goal.xml](resources/layouts/goal.xml) |
-| Intervalo | [interval.xml](resources/layouts/interval.xml) |
-| Hora inicial y final | [time.xml](resources/layouts/time.xml) |
-| Encabezado de ajustes | [settings-menu.xml](resources/layouts/settings-menu.xml) |
-| Encabezado de dias | [days-menu.xml](resources/layouts/days-menu.xml) |
-| Fila de ambos menus | [menu-item.xml](resources/layouts/menu-item.xml) |
+| Principal | [water.xml](resources/layouts/screens/water.xml) |
+| Recordatorio, sin proxima alerta | [reminder.xml](resources/layouts/screens/reminder.xml) |
+| Error de ajustes o programacion en ambas pantallas | [settings-error.xml](resources/layouts/components/settings-error.xml) |
+| Objetivo diario | [goal.xml](resources/layouts/screens/goal.xml) |
+| Intervalo | [interval.xml](resources/layouts/screens/interval.xml) |
+| Hora inicial y final | [time.xml](resources/layouts/screens/time.xml) |
+| Encabezado de ajustes | [settings-menu-header.xml](resources/layouts/components/settings-menu-header.xml) |
+| Encabezado de dias | [days-menu-header.xml](resources/layouts/components/days-menu-header.xml) |
+| Fila de ambos menus | [menu-item.xml](resources/layouts/components/menu-item.xml) |
+
+[screens/](resources/layouts/screens/) contiene layouts de pantallas completas; [components/](resources/layouts/components/) contiene piezas que se dibujan dentro de una pantalla. Los nombres de los componentes describen su funcion: `header` para encabezados e `item` para filas. Los identificadores `SettingsMenuHeaderLayout` y `DaysMenuHeaderLayout` dejan claro que esos recursos no representan menus completos. Esta distincion afecta solo a los XML y sus referencias; las clases `View` y `Menu` conservan sus nombres.
 
 Los menus conservan el control nativo de Garmin para la lista, el desplazamiento y la seleccion; sus encabezados y filas usan XML. Los layouts se compilan en la app: cambiar un XML o la paleta requiere recompilar, no se cargan ficheros externos en el reloj.
 
@@ -110,7 +113,7 @@ Los margenes y espacios de cada pantalla se ajustan en su XML. El contenido larg
 
 El manifiesto sigue admitiendo solo el Forerunner 645. Las posiciones se adaptan al tamano del contexto, pero los porcentajes no garantizan que cualquier texto o fuente quepa en cualquier reloj. Anadir otro dispositivo requiere incorporar su perfil y validar sus fuentes, pantalla y controles; si hace falta, se pueden definir variantes de recursos por dispositivo.
 
-Conserva los identificadores de los elementos que actualiza el codigo: `content`, `status`, `schedule`, `errorTitle`, `errorDetail`, `toggleHint` y `menuHint` en las dos vistas principales; `next` solo en la principal; `title`, `digitN`, `range` y `confirmHint` en los editores por cifras. [LayoutView.mc](source/View/Common/LayoutView.mc) solo proporciona acceso tipado a los textos y controla que elementos dibujar, porque API 3.1 no admite la visibilidad nativa de los drawables. Ya no contiene un motor de distribucion ni componentes de dibujo propios.
+Conserva los identificadores de los elementos que actualiza el codigo: `content`, `status`, `schedule`, `toggleHint` y `menuHint` en las dos vistas principales; `errorTitle` y `errorDetail` en el componente compartido [settings-error.xml](resources/layouts/components/settings-error.xml); `next` solo en la principal; `title`, `digitN`, `range` y `confirmHint` en los editores por cifras. `setWaterLayout` combina los drawables de la pantalla y del error usando el mismo contexto de dibujo, por lo que los porcentajes y el acceso por identificador se mantienen. [LayoutView.mc](source/View/Common/LayoutView.mc) solo proporciona acceso tipado a los textos y controla que elementos dibujar, porque API 3.1 no admite la visibilidad nativa de los drawables. Ya no contiene un motor de distribucion ni componentes de dibujo propios.
 
 ### Organizacion estilo MVC
 
@@ -126,7 +129,7 @@ El codigo de [source/](source/) se organiza por responsabilidades:
 | [Controller/](source/Controller/) | Delegados de entrada, borradores de edicion y navegacion. |
 | [Style/](source/Style/) | Paleta y constantes de apariencia. |
 
-Los layouts permanecen en [resources/layouts/](resources/layouts/) y las pruebas en [tests/](tests/). Las carpetas no introducen nuevos modulos ni cambian los nombres de las clases o las referencias XML. `monkey.jungle` conserva `source` como ruta raiz de codigo; el compilador incluye sus subcarpetas.
+Los layouts se organizan en [resources/layouts/screens/](resources/layouts/screens/) y [resources/layouts/components/](resources/layouts/components/); las pruebas permanecen en [tests/](tests/). Las carpetas no introducen nuevos modulos ni cambian los nombres de las clases. Los recursos XML se referencian por su identificador, no por su ruta. `monkey.jungle` conserva `source` como ruta raiz de codigo y `resources` como raiz de recursos; el compilador incluye sus subcarpetas.
 
 - **Modelo compartido:** `Config` y `Schedule` mantienen la configuracion y el calendario; `DrinkWaterApp.save` persiste los cambios y recalcula los avisos.
 - **Vista:** carga el XML, lee los datos y actualiza textos, colores y elementos mostrados. No modifica ni guarda el borrador del editor.
@@ -144,7 +147,7 @@ Cada pantalla tiene su vista y controlador en archivos propios:
 | Intervalo | [IntervalView.mc](source/View/IntervalView.mc) | [IntervalController.mc](source/Controller/IntervalController.mc) |
 | Hora inicial y final | [TimeView.mc](source/View/TimeView.mc) | [TimeController.mc](source/Controller/TimeController.mc) |
 
-Las dos horas reutilizan la misma logica, vista y layout [time.xml](resources/layouts/time.xml). El controlador aporta el titulo y el valor; `DigitView.onUpdate` actualiza esos datos sin duplicar la estructura visual. Los controladores base de numeros y cifras comparten el comportamiento de edicion; las vistas base comparten solo el dibujo. `BaseWaterController` reutiliza los botones de principal y recordatorio. `BaseSettingsMenu` y `MenuVisuals` reutilizan el refresco y los elementos visuales de los menus.
+Las dos horas reutilizan la misma logica, vista y layout [time.xml](resources/layouts/screens/time.xml). El controlador aporta el titulo y el valor; `DigitView.onUpdate` actualiza esos datos sin duplicar la estructura visual. Los controladores base de numeros y cifras comparten el comportamiento de edicion; las vistas base comparten solo el dibujo. `BaseWaterController` reutiliza los botones de principal y recordatorio. `BaseSettingsMenu` y `MenuVisuals` reutilizan el refresco y los elementos visuales de los menus.
 
 Al abrir un editor, la vista recibe el mismo controlador que Garmin utiliza como delegado:
 

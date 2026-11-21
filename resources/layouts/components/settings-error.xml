@@ -1,0 +1,8 @@
+<layout id="SettingsErrorLayout">
+    <label id="errorTitle" x="50%" y="38%" font="Graphics.FONT_XTINY"
+           text="@Strings.InvalidSettings" color="0xFFAA55"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+    <text-area id="errorDetail" x="center" y="44%" width="84%" height="24%"
+               font="Graphics.FONT_XTINY" text="@Strings.ScheduleError" color="0xFFAA55"
+               justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+</layout>

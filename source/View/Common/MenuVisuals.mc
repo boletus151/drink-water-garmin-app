@@ -14,7 +14,7 @@ class SettingsTitle extends WatchUi.Drawable {
 
     function draw(dc as Graphics.Dc) as Void {
         if (_view.updateLayoutSize(dc)) {
-            _view.setLayout(_daysOnly ? Rez.Layouts.DaysMenuLayout(dc) : Rez.Layouts.SettingsMenuLayout(dc));
+            _view.setLayout(_daysOnly ? Rez.Layouts.DaysMenuHeaderLayout(dc) : Rez.Layouts.SettingsMenuHeaderLayout(dc));
         }
         _view.drawLayout(dc);
     }

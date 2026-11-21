@@ -12,7 +12,7 @@ class WaterView extends BaseWaterView {
     }
 
     function onLayout(dc as Graphics.Dc) as Void {
-        setLayout(Rez.Layouts.WaterLayout(dc));
+        setWaterLayout(Rez.Layouts.WaterLayout(dc), dc);
     }
 
     function onUpdate(dc as Graphics.Dc) as Void {

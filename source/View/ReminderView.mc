@@ -6,7 +6,7 @@ class ReminderView extends BaseWaterView {
     }
 
     function onLayout(dc as Graphics.Dc) as Void {
-        setLayout(Rez.Layouts.ReminderLayout(dc));
+        setWaterLayout(Rez.Layouts.ReminderLayout(dc), dc);
     }
 
     function onUpdate(dc as Graphics.Dc) as Void {

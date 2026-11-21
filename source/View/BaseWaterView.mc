@@ -19,6 +19,11 @@ class BaseWaterView extends LayoutView {
         controller = input;
     }
 
+    function setWaterLayout(items as Array<WatchUi.Drawable>, dc as Graphics.Dc) as Void {
+        items.addAll(Rez.Layouts.SettingsErrorLayout(dc));
+        setLayout(items);
+    }
+
     function onShow() as Void {
         waterApp().visibleRoot = self;
         waterApp().refreshRootView();
