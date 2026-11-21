@@ -1,0 +1,17 @@
+<layout id="MenuItemLayout">
+    <drawable id="background" class="LayoutBackground">
+        <param name="ink">$.Theme.BACKGROUND</param>
+    </drawable>
+    <drawable id="focus" class="LayoutBackground">
+        <param name="ink">$.Theme.FOCUS</param>
+    </drawable>
+    <label id="label" font="Graphics.FONT_XTINY" class="LayoutText">
+        <param name="ink">$.Theme.TEXT</param>
+    </label>
+    <label id="navigation" font="Graphics.FONT_XTINY" class="LayoutText">
+        <param name="ink">$.Theme.TEXT</param>
+    </label>
+    <label id="subLabel" font="Graphics.FONT_XTINY" class="LayoutText">
+        <param name="ink">$.Theme.MUTED</param>
+    </label>
+</layout>

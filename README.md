@@ -65,15 +65,108 @@ La regla de inicio anterior al fin no cambia: si al editar los extremos el horar
 
 ### Apariencia
 
-La pantalla principal (tambien al aceptar un recordatorio), los menus de ajustes y dias, y los editores comparten un fondo negro con acentos azul agua. El texto principal es blanco, las indicaciones secundarias son gris claro y los errores aparecen en ambar, siempre acompanados de texto. La fila del menu seleccionada tiene fondo azul oscuro; la cifra activa, fondo azul agua y texto negro. Los botones y el guardado no cambian.
+La pantalla principal, la del recordatorio, los menus de ajustes y dias, y los editores comparten un fondo negro con acentos azul agua. El texto principal es blanco, las indicaciones secundarias son gris claro y los errores aparecen en ambar, siempre acompanados de texto. La fila del menu seleccionada tiene fondo azul oscuro; la cifra activa, fondo azul agua y texto negro. Los botones y el guardado no cambian.
+
+La pantalla principal y el recordatorio son vistas distintas. La principal muestra el objetivo diario y el proximo aviso. El recordatorio muestra "Recuerda beber agua" y el horario, pero no calcula ni muestra la proxima alerta. Ambas comparten el encabezado, los errores y los botones. Guardar un ajuste vuelve al estado de pantalla principal; recibir un aviso nuevo selecciona la vista del recordatorio sin interrumpir un editor abierto.
+
+`WaterView` y `ReminderView` heredan de `BaseWaterView`, no una de la otra. La base actualiza el marco compartido mediante `updateFrame`; cada vista carga su layout XML en `onLayout`, actualiza los datos en `onUpdate` y oculta su contenido si hay un error.
 
 El dialogo inicial "Recuerda beber agua" y los ajustes del movil conservan la apariencia del sistema Garmin: la aplicacion no controla sus colores.
 
-El estilo se centraliza en [source/Theme.mc](source/Theme.mc): paleta por roles, fuentes y dibujo de titulos, lineas, numeros, cifras seleccionadas y filas de menu. Las pantallas conservan el contenido, las posiciones y la logica, y delegan el dibujo al tema. Para cambiar el estilo, modifica ese archivo y recompila; todavia no se cargan temas desde XML ni se seleccionan en tiempo de ejecucion.
+La paleta por roles sigue centralizada en [Theme.mc](source/Style/Theme.mc). La distribucion, las fuentes y los elementos visuales se definen en [resources/layouts/](resources/layouts/):
+
+| Pantalla o elemento | XML |
+| --- | --- |
+| Principal | [water.xml](resources/layouts/water.xml) |
+| Recordatorio, sin proxima alerta | [reminder.xml](resources/layouts/reminder.xml) |
+| Objetivo diario | [goal.xml](resources/layouts/goal.xml) |
+| Intervalo | [interval.xml](resources/layouts/interval.xml) |
+| Hora inicial | [start-time.xml](resources/layouts/start-time.xml) |
+| Hora final | [end-time.xml](resources/layouts/end-time.xml) |
+| Encabezado de ajustes | [settings-menu.xml](resources/layouts/settings-menu.xml) |
+| Encabezado de dias | [days-menu.xml](resources/layouts/days-menu.xml) |
+| Fila de ambos menus | [menu-item.xml](resources/layouts/menu-item.xml) |
+
+Los menus conservan el control nativo de Garmin para la lista, el desplazamiento y la seleccion; sus encabezados y filas usan XML. Los layouts se compilan en la app: cambiar un XML o la paleta requiere recompilar, no se cargan ficheros externos en el reloj.
+
+Los XML no contienen coordenadas ni dimensiones de resaltados. [LayoutView.mc](source/View/Common/LayoutView.mc) dispone los textos visibles en el orden del XML, centrados horizontalmente y apilados verticalmente; el bloque completo tambien se centra. Los elementos ocultos no reservan espacio. `LayoutText` y `LayoutBackground` reutilizan la paleta mediante parametros XML:
+
+```xml
+<label id="title" class="LayoutText" font="Graphics.FONT_SMALL"
+       text="@Strings.AppName">
+    <param name="ink">$.Theme.ACCENT</param>
+</label>
+```
+
+Las etiquetas consecutivas con el mismo parametro `row` forman una fila centrada. Las horas declaran sus elementos en el orden `digit0`, `digit1`, `separator`, `digit2`, `digit3`; el intervalo declara dos cifras. Cada celda se mide con la fuente real y el ancho maximo de sus digitos, para que cambiar el valor no mueva la fila. `SelectionBox` recibe el identificador `target` de la cifra y toma automaticamente su posicion y tamano:
+
+```xml
+<drawable id="selection0" class="SelectionBox">
+    <param name="target">"digit0"</param>
+    <param name="ink">$.Theme.ACCENT</param>
+</drawable>
+<label id="digit0" class="LayoutText" font="Graphics.FONT_NUMBER_MILD">
+    <param name="row">"digits"</param>
+    <param name="padding">$.Theme.DIGIT_PADDING</param>
+    <param name="ink">$.Theme.TEXT</param>
+</label>
+```
+
+Los margenes y espaciados se ajustan en [Theme.mc](source/Style/Theme.mc): `SCREEN_MARGIN`, `MENU_MARGIN`, `STACK_GAP`, `ROW_GAP` y `DIGIT_PADDING`. La altura de las filas nativas de menu tambien se calcula con la fuente del dispositivo, el espaciado y los rellenos `MENU_PADDING` y `MENU_FOCUS_PADDING`. La distribucion usa el ancho y alto del contexto de dibujo y las alturas de las fuentes del dispositivo, no un tamano de pantalla fijo. En pantallas circulares o semicirculares, las vistas completas aprovechan la altura disponible y comprueban el ancho util en los bordes superior e inferior de cada fila. Se reduce el espaciado hasta que las filas quedan dentro del contorno con margen, sin restringir toda la pantalla a un pequeno rectangulo inscrito. Los encabezados y filas nativos de menu usan su propio contexto rectangular.
+
+Los textos normales se parten en lineas cuando no caben de ancho. Si falta altura, se reduce el espaciado vertical; si ni siquiera caben sin espaciado, o una fila es demasiado ancha, se utilizan fuentes compactas. Las cifras permanecen en una sola linea. Si el contenido aun no cabe, se muestra una excepcion explicita en lugar de dibujarlo recortado. La apariencia se adapta al espacio disponible; los botones, la validacion y el guardado no cambian.
+
+El manifiesto sigue admitiendo solo el Forerunner 645. Esta distribucion prepara la interfaz para otros tamanos, pero anadir otro reloj requiere incorporar su perfil y validar sus fuentes, pantalla y controles.
+
+Conserva los identificadores de los elementos que actualiza el codigo: `content`, `status`, `schedule`, `errorTitle`, `errorDetail`, `toggleHint` y `menuHint` en las dos vistas principales; `next` solo en la principal; `title`, `digitN`, `selectionN`, `range` y `confirmHint` en los editores por cifras. `LayoutView` comprueba que existen y muestra los errores de recursos como excepciones, sin omitirlos silenciosamente. En API 3.1 controla que elementos dibujar porque el dispositivo no admite la visibilidad nativa de los drawables.
+
+### Organizacion estilo MVC
+
+El codigo de [source/](source/) se organiza por responsabilidades:
+
+| Carpeta | Responsabilidad |
+| --- | --- |
+| [App/](source/App/) | Punto de entrada, ciclo de vida y coordinacion del guardado. |
+| [Model/](source/Model/) | Datos de configuracion, lectura de propiedades y validacion. |
+| [Service/](source/Service/) | Calculo del calendario, registro de eventos y ejecucion en segundo plano. |
+| [View/](source/View/) | Pantallas, menus, editores y sus vistas base. |
+| [View/Common/](source/View/Common/) | Acceso a layouts XML y componentes visuales reutilizables. |
+| [Controller/](source/Controller/) | Delegados de entrada, borradores de edicion y navegacion. |
+| [Style/](source/Style/) | Paleta y constantes de apariencia. |
+
+Los layouts permanecen en [resources/layouts/](resources/layouts/) y las pruebas en [tests/](tests/). Las carpetas no introducen nuevos modulos ni cambian los nombres de las clases o las referencias XML. `monkey.jungle` conserva `source` como ruta raiz de codigo; el compilador incluye sus subcarpetas.
+
+- **Modelo compartido:** `Config` y `Schedule` mantienen la configuracion y el calendario; `DrinkWaterApp.save` persiste los cambios y recalcula los avisos.
+- **Vista:** carga el XML, lee los datos y actualiza textos, colores y elementos mostrados. No modifica ni guarda el borrador del editor.
+- **Controlador:** es el delegado de entrada de Garmin. Mantiene el borrador, responde a los botones, valida, confirma o cancela, guarda y gestiona la navegacion.
+
+Cada pantalla tiene su vista y controlador en archivos propios:
+
+| Pantalla | Vista | Controlador |
+| --- | --- | --- |
+| Principal | [WaterView.mc](source/View/WaterView.mc) | [WaterController.mc](source/Controller/WaterController.mc) |
+| Recordatorio | [ReminderView.mc](source/View/ReminderView.mc) | [ReminderController.mc](source/Controller/ReminderController.mc) |
+| Ajustes | [SettingsMenu.mc](source/View/SettingsMenu.mc) | [SettingsController.mc](source/Controller/SettingsController.mc) |
+| Dias activos | [DaysMenu.mc](source/View/DaysMenu.mc) | [DaysController.mc](source/Controller/DaysController.mc) |
+| Objetivo diario | [GoalView.mc](source/View/GoalView.mc) | [GoalController.mc](source/Controller/GoalController.mc) |
+| Intervalo | [IntervalView.mc](source/View/IntervalView.mc) | [IntervalController.mc](source/Controller/IntervalController.mc) |
+| Hora inicial y final | [TimeView.mc](source/View/TimeView.mc) | [TimeController.mc](source/Controller/TimeController.mc) |
+
+Las dos horas reutilizan la misma logica y vista, pero conservan sus XML separados. Los controladores base de numeros y cifras comparten el comportamiento de edicion; las vistas base comparten solo el dibujo. `BaseWaterController` reutiliza los botones de principal y recordatorio. `BaseSettingsMenu` y `MenuVisuals` reutilizan el refresco y los elementos visuales de los menus.
+
+Al abrir un editor, la vista recibe el mismo controlador que Garmin utiliza como delegado:
+
+```monkeyc
+var controller = new IntervalController(text(Rez.Strings.Interval), 15);
+var view = new IntervalView(controller);
+WatchUi.pushView(view, controller, WatchUi.SLIDE_UP);
+```
+
+No hay un framework MVC adicional ni copias del modelo por pantalla. Los cambios de organizacion no alteran los botones, las reglas de validacion ni el guardado.
 
 ### Prueba rapida del aviso
 
-La constante `Config.DEBUG` en [source/Config.mc](source/Config.mc) esta en `true` para pruebas. Al abrir la app con los avisos activados y una configuracion valida, solicita un unico aviso de prueba **60 segundos despues de abrir**, aunque sea fuera del horario o de los dias activos. Sal inmediatamente con BACK para probarlo con la aplicacion cerrada. Salir o editar ajustes no reinicia la cuenta atras; desactivar los avisos cancela el evento. Abrir de nuevo la app inicia otra prueba, tambien al abrirla desde un aviso.
+La constante `Config.DEBUG` en [Config.mc](source/Model/Config.mc) esta en `true` para pruebas. Al abrir la app con los avisos activados y una configuracion valida, solicita un unico aviso de prueba **60 segundos despues de abrir**, aunque sea fuera del horario o de los dias activos. Sal inmediatamente con BACK para probarlo con la aplicacion cerrada. Salir o editar ajustes no reinicia la cuenta atras; desactivar los avisos cancela el evento. Abrir de nuevo la app inicia otra prueba, tambien al abrirla desde un aviso.
 
 Si el servicio se ha ejecutado recientemente, la prueba se aplaza hasta cumplir los cinco minutos minimos de Garmin. La pantalla principal muestra esa hora en "Proximo" y la consola informa de la espera en segundos. El firmware sigue controlando cuando presenta el dialogo; no se garantiza una alarma exacta. Se descarta un evento con mas de 60 segundos de retraso y despues continua el calendario normal.
 
@@ -116,7 +209,7 @@ La compilacion usa comprobacion estricta de tipos (`-l 3`) y avisos del compilad
 4. La extension oficial compila el proyecto y lo ejecuta en el simulador del 645. La configuracion [launch.json](.vscode/launch.json) detiene la ejecucion al iniciar.
 5. Coloca puntos de interrupcion en los archivos Monkey C, continua con F5 y usa los botones del reloj simulado para reproducir el comportamiento.
 
-Para los editores por cifras, coloca puntos de interrupcion en `DigitView.change` o `DigitView.confirm`, en [SettingsView.mc](source/SettingsView.mc). `TimeView.save` guarda la hora completa.
+Para los editores por cifras, coloca puntos de interrupcion en `DigitController.change` o `DigitController.confirm`, en [DigitController.mc](source/Controller/DigitController.mc). `TimeController.save`, en [TimeController.mc](source/Controller/TimeController.mc), guarda la hora completa.
 
 No ejecutes al mismo tiempo `run-simulator.sh` y una sesion de depuracion sobre el mismo simulador. Las rutas personales y la clave no forman parte de `launch.json`; `.vscode/settings.json` permanece excluido de Git.
 
@@ -160,16 +253,27 @@ Esto genera `bin/drink-water.iq`. La publicacion en Connect IQ Store, incluida u
 
 ## Mantenimiento
 
-- [Config.mc](source/Config.mc): lectura y validacion centralizada de propiedades.
-- [Schedule.mc](source/Schedule.mc): calendario local y registro de eventos.
-- [WaterService.mc](source/WaterService.mc): ejecucion en segundo plano y solicitud de apertura.
-- [DrinkWaterApp.mc](source/DrinkWaterApp.mc): ciclo de vida y persistencia del ultimo aviso.
-- [WaterView.mc](source/WaterView.mc) y [SettingsView.mc](source/SettingsView.mc): interfaz por botones.
-- [resources/](resources/): textos, propiedades, ajustes e icono.
+- [Config.mc](source/Model/Config.mc): lectura y validacion centralizada de propiedades.
+- [Schedule.mc](source/Service/Schedule.mc): calendario local y registro de eventos.
+- [WaterService.mc](source/Service/WaterService.mc): ejecucion en segundo plano y solicitud de apertura.
+- [DrinkWaterApp.mc](source/App/DrinkWaterApp.mc): ciclo de vida y persistencia del ultimo aviso.
+- [BaseWaterView.mc](source/View/BaseWaterView.mc): marco y ciclo de visibilidad compartidos.
+- [LayoutView.mc](source/View/Common/LayoutView.mc): acceso tipado a elementos XML y dibujo compatible con API 3.1.
+- [Theme.mc](source/Style/Theme.mc): paleta, margenes, espaciados y rellenos del menu.
+- [WaterView.mc](source/View/WaterView.mc): pantalla principal.
+- [WaterController.mc](source/Controller/WaterController.mc) y [ReminderController.mc](source/Controller/ReminderController.mc): controladores de las vistas principales.
+- [ReminderView.mc](source/View/ReminderView.mc): pantalla del recordatorio, sin proxima alerta.
+- [SettingsMenu.mc](source/View/SettingsMenu.mc) y [DaysMenu.mc](source/View/DaysMenu.mc): menus independientes.
+- [SettingsController.mc](source/Controller/SettingsController.mc) y [DaysController.mc](source/Controller/DaysController.mc): seleccion, apertura de editores y cambio de dias.
+- [NumberView.mc](source/View/NumberView.mc) y [DigitView.mc](source/View/DigitView.mc): dibujo compartido de los editores.
+- [NumberController.mc](source/Controller/NumberController.mc) y [DigitController.mc](source/Controller/DigitController.mc): edicion, validacion y botones compartidos.
+- [GoalView.mc](source/View/GoalView.mc), [IntervalView.mc](source/View/IntervalView.mc) y [TimeView.mc](source/View/TimeView.mc): vistas de editores, con sus controladores en [Controller/](source/Controller/).
+- [MenuVisuals.mc](source/View/Common/MenuVisuals.mc): encabezados y filas XML de los menus.
+- [resources/](resources/): layouts XML, textos, propiedades, ajustes e icono.
 
-En [Schedule.mc](source/Schedule.mc), `localClockSeconds` representa los campos de fecha/hora local para hacer calculos de calendario, y `momentFromLocalClock` los convierte en un instante real, teniendo en cuenta los cambios de hora. `next` calcula el siguiente aviso; `earliestAllowedTime` comparte la espera minima entre debug y el calendario normal; `respectMinimumSpacing` aplaza u omite un aviso cuando es necesario. `eventTime` combina esas reglas con las comprobaciones periodicas, sin cambiar la cadencia.
+En [Schedule.mc](source/Service/Schedule.mc), `localClockSeconds` representa los campos de fecha/hora local para hacer calculos de calendario, y `momentFromLocalClock` los convierte en un instante real, teniendo en cuenta los cambios de hora. `next` calcula el siguiente aviso; `earliestAllowedTime` comparte la espera minima entre debug y el calendario normal; `respectMinimumSpacing` aplaza u omite un aviso cuando es necesario. `eventTime` combina esas reglas con las comprobaciones periodicas, sin cambiar la cadencia.
 
-El esquema de ajustes actual es `schemaVersion=3`, con `startTime` y `endTime` en minutos desde medianoche. Los dias siguen el orden lunes-domingo en propiedades, menus y ajustes del movil. El calendario de Garmin usa domingo=1; [Schedule.mc](source/Schedule.mc) convierte esa numeracion al indice interno lunes=0.
+El esquema de ajustes actual es `schemaVersion=3`, con `startTime` y `endTime` en minutos desde medianoche. Los dias siguen el orden lunes-domingo en propiedades, menus y ajustes del movil. El calendario de Garmin usa domingo=1; [Schedule.mc](source/Service/Schedule.mc) convierte esa numeracion al indice interno lunes=0.
 
 No hay migraciones ni copias temporales. Se aceptan los marcadores de version 1, 2 y 3, pero siempre se leen las propiedades actuales; las cuatro propiedades antiguas de hora/minuto se ignoran. Si actualizas desde una version donde `day1` era domingo, **revisa y configura de nuevo los dias activos**: los valores se conservan, pero su significado cambia.
 
@@ -190,6 +294,13 @@ No hay servidor, analitica ni recogida de datos de consumo. Un aviso no confirma
 
 ## Validacion de esta entrega
 
+- Correccion del ajuste circular: se elimina el rectangulo inscrito que hacia fallar la pantalla principal del 645. Se comprueba el contorno por fila y se anade una regresion para contenido alto sin recortes. Aplicacion y pruebas compiladas sin avisos; las pruebas no se han ejecutado. La usuaria confirma que, tras ejecutar de nuevo el script en el simulador del 645, la pantalla principal se muestra correctamente.
+
+- Distribucion automatica: compilacion estricta de aplicacion sin avisos. Los nueve layouts no contienen coordenadas; se han anadido casos de centrado, redistribucion de elementos ocultos y resaltado de cifras con distintos tamanos de buffer. No se han ejecutado las pruebas, a peticion de la usuaria; pendiente de comprobacion visual y validacion en otros perfiles.
+
+- Organizacion MVC: compilacion estricta sin avisos y **25 pruebas aprobadas**; las pruebas de edicion ejercitan ahora los controladores y las de renderizado conectan cada vista XML con su controlador. Se mantienen el guardado, la cancelacion, la seleccion de cifras y la programacion de avisos.
+- Layouts XML: compilacion estricta sin avisos y **25 pruebas aprobadas**. Se renderizan en buffers completos las pantallas principal, recordatorio, objetivo, intervalo y ambas horas; tambien los encabezados y filas de menus con cambios de tamano. Se comprueba que el recordatorio no contiene `next` y que los elementos ocultos no se dibujan. Pendiente de revision visual en el reloj o simulador.
+- Separacion de vistas: compilacion estricta y paquete sin avisos; **22 pruebas aprobadas**, incluida la seleccion de la vista del recordatorio y el retorno a la principal al guardar. Pendiente de comprobacion visual al aceptar el dialogo de Garmin.
 - Modo DEBUG: compilacion estricta y paquete generados sin avisos; **21 pruebas aprobadas**, incluidas la espera exacta de 60 segundos, el limite minimo de Garmin, la desactivacion del modo y la conservacion/caducidad del plazo. La presentacion real del aviso sigue pendiente de prueba manual.
 - Mejora de color: compilacion estricta de aplicacion y pruebas sin avisos; **18 pruebas aprobadas**, sin fallos ni errores. La comprobacion visual de la nueva paleta queda pendiente: la automatizacion del simulador fue bloqueada por la proteccion de foco de macOS.
 - Compilacion estricta sin avisos con SDK oficial **9.3.0**, perfil **fr645 (3.1.6)**.

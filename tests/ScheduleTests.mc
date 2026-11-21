@@ -1,9 +1,231 @@
 import Toybox.Application.Properties;
 import Toybox.Application.Storage;
+import Toybox.Graphics;
 import Toybox.Lang;
 import Toybox.Test;
 import Toybox.Time;
 import Toybox.Time.Gregorian;
+import Toybox.WatchUi;
+
+(:test)
+class LayoutDrawCounter extends WatchUi.Drawable {
+    var count as Number = 0;
+
+    static function buffer(height as Number) as Graphics.BufferedBitmap {
+        return new Graphics.BufferedBitmap({
+            :width => 240, :height => height
+        });
+    }
+
+    function initialize(id as String) {
+        Drawable.initialize({:identifier => id});
+    }
+
+    function draw(dc as Graphics.Dc) as Void {
+        count += 1;
+    }
+}
+
+(:test)
+function xmlLayoutsRenderScreensAndKeepNextOutOfTheReminder(logger as Test.Logger) as Boolean {
+    var buffer = LayoutDrawCounter.buffer(240);
+    var dc = buffer.getDc();
+    var main = new WaterView();
+    main.onLayout(dc);
+    main.onUpdate(dc);
+    Test.assert(main.findDrawableById("next") != null);
+    var reminder = new ReminderView();
+    reminder.onLayout(dc);
+    reminder.onUpdate(dc);
+    Test.assert(reminder.findDrawableById("next") == null);
+    var goal = new GoalView(new GoalController(text(Rez.Strings.Goal), 2000));
+    goal.onLayout(dc);
+    goal.onUpdate(dc);
+    var interval = new IntervalController(text(Rez.Strings.Interval), 15);
+    var intervalView = new IntervalView(interval);
+    intervalView.onLayout(dc);
+    intervalView.onUpdate(dc);
+    interval.confirm();
+    interval.change(-1);
+    Test.assert(!interval.confirm());
+    intervalView.onUpdate(dc);
+    interval.change(1);
+    Test.assert(interval.confirm());
+    intervalView.onUpdate(dc);
+    var keys = ["startTime", "endTime"];
+    for (var i = 0; i < keys.size(); i += 1) {
+        var time = new TimeController(keys[i], text(Rez.Strings.Settings), 570);
+        var timeView = new TimeView(time);
+        timeView.onLayout(dc);
+        for (var digit = 0; digit < 4; digit += 1) {
+            timeView.onUpdate(dc);
+            time.confirm();
+        }
+    }
+    return true;
+}
+
+(:test)
+function xmlMenuVisualsRenderNavigationValuesAndResizedRows(logger as Test.Logger) as Boolean {
+    var buffer = LayoutDrawCounter.buffer(62);
+    var dc = buffer.getDc();
+    var settingsTitle = new SettingsTitle(false);
+    var daysTitle = new SettingsTitle(true);
+    settingsTitle.draw(dc);
+    daysTitle.draw(dc);
+    var item = new SettingsItem(text(Rez.Strings.Days), null, "days");
+    item.draw(dc);
+    item.setSubLabel(text(Rez.Strings.Enabled));
+    item.draw(dc);
+    var focusedBuffer = LayoutDrawCounter.buffer(68);
+    item.draw(focusedBuffer.getDc());
+    item.setSubLabel(null);
+    item.draw(dc);
+    return true;
+}
+
+(:test)
+function layoutVisibilitySkipsHiddenElementsAndResetsWithANewLayout(logger as Test.Logger) as Boolean {
+    var buffer = LayoutDrawCounter.buffer(1);
+    var view = new LayoutView();
+    var first = new LayoutDrawCounter("first");
+    var second = new LayoutDrawCounter("second");
+    view.setLayout([first, second]);
+    view.show("second", false);
+    view.drawLayout(buffer.getDc());
+    Test.assertEqual(first.count, 1);
+    Test.assertEqual(second.count, 0);
+    view.show("second", true);
+    view.drawLayout(buffer.getDc());
+    Test.assertEqual(second.count, 1);
+    view.show("second", false);
+    view.setLayout([second]);
+    view.drawLayout(buffer.getDc());
+    Test.assertEqual(second.count, 2);
+    return true;
+}
+
+(:test)
+function automaticLayoutCentersRowsAndReflowsHiddenText(logger as Test.Logger) as Boolean {
+    var sizes = [[200, 180], [240, 240], [320, 320]];
+    for (var i = 0; i < sizes.size(); i += 1) {
+        var buffer = new Graphics.BufferedBitmap({:width => sizes[i][0], :height => sizes[i][1]});
+        var dc = buffer.getDc();
+        var view = new LayoutView();
+        var first = new LayoutText({:identifier => "first", :text => "Titulo",
+            :font => Graphics.FONT_SMALL, :ink => Theme.TEXT});
+        var middle = new LayoutText({:identifier => "middle", :text => "Contenido",
+            :font => Graphics.FONT_XTINY, :ink => Theme.TEXT});
+        var last = new LayoutText({:identifier => "last", :text => "Guardar",
+            :font => Graphics.FONT_XTINY, :ink => Theme.TEXT});
+        view.setLayout([first, middle, last]);
+        view.drawLayout(dc);
+        Test.assertEqual(first.locX, dc.getWidth() / 2);
+        Test.assertEqual(middle.locX, first.locX);
+        Test.assert(first.locY + first.measuredHeight <= middle.locY);
+        Test.assert(middle.locY + middle.measuredHeight <= last.locY);
+        var centerError = first.locY + last.locY + last.measuredHeight - dc.getHeight();
+        Test.assert(centerError >= -2 && centerError <= 2);
+        var previousTop = first.locY;
+        var previousBottom = last.locY;
+        view.show("middle", false);
+        view.drawLayout(dc);
+        Test.assert(first.locY > previousTop);
+        Test.assert(last.locY < previousBottom);
+        Test.assert(first.locY >= 0 && last.locY + last.measuredHeight <= dc.getHeight());
+    }
+    return true;
+}
+
+(:test)
+function roundLayoutUsesAvailableHeightWithoutClippingItsRows(logger as Test.Logger) as Boolean {
+    var buffer = LayoutDrawCounter.buffer(240);
+    var dc = buffer.getDc();
+    var view = new LayoutView();
+    var lineHeight = dc.getFontHeight(Graphics.FONT_XTINY);
+    var count = ((dc.getHeight() - Theme.SCREEN_MARGIN * 2) / lineHeight).toNumber() - 1;
+    var items = [] as Array<WatchUi.Drawable>;
+    for (var i = 0; i < count; i += 1) {
+        items.add(new LayoutText({:identifier => "line" + i.toString(), :text => "F",
+            :font => Graphics.FONT_XTINY, :ink => Theme.TEXT}));
+    }
+    view.setLayout(items);
+    view.drawLayout(dc);
+    Test.assert(view.label("line0").locY < dc.getHeight() / 8);
+    var radiusX = dc.getWidth() / 2.0 - Theme.SCREEN_MARGIN;
+    var radiusY = dc.getHeight() / 2.0 - Theme.SCREEN_MARGIN;
+    for (var i = 0; i < count; i += 1) {
+        var item = view.label("line" + i.toString());
+        var x = item.measuredWidth / 2.0 / radiusX;
+        var top = (item.locY - dc.getHeight() / 2.0) / radiusY;
+        var bottom = (item.locY + item.measuredHeight - dc.getHeight() / 2.0) / radiusY;
+        Test.assert(x * x + top * top <= 1);
+        Test.assert(x * x + bottom * bottom <= 1);
+    }
+    return true;
+}
+
+(:test)
+function automaticDigitRowCentersAndSelectionFollowsItsTarget(logger as Test.Logger) as Boolean {
+    var sizes = [218, 240, 320];
+    for (var i = 0; i < sizes.size(); i += 1) {
+        var buffer = new Graphics.BufferedBitmap({:width => sizes[i], :height => sizes[i]});
+        var dc = buffer.getDc();
+        var controller = new TimeController("endTime", text(Rez.Strings.EndHour), 570);
+        var view = new TimeView(controller);
+        view.onLayout(dc);
+        view.onUpdate(dc);
+        var first = view.label("digit0");
+        var last = view.label("digit3");
+        var rowCenterError = first.locX - first.measuredWidth / 2 +
+            last.locX + last.measuredWidth / 2 - dc.getWidth();
+        Test.assert(rowCenterError >= -2 && rowCenterError <= 2);
+        var initialX = first.locX;
+        var initialWidth = first.measuredWidth;
+        controller.change(1);
+        controller.confirm();
+        view.onUpdate(dc);
+        Test.assertEqual(first.locX, initialX);
+        Test.assertEqual(first.measuredWidth, initialWidth);
+        var selected = view.label("digit1");
+        var box = view.drawable("selection1") as SelectionBox;
+        Test.assertEqual(box.locX, selected.locX - selected.measuredWidth / 2);
+        Test.assertEqual(box.locY, selected.locY);
+        Test.assertEqual(box.width, selected.measuredWidth);
+        Test.assertEqual(box.height, selected.measuredHeight);
+    }
+    return true;
+}
+
+(:test)
+function reminderUsesItsOwnViewAndSavingReturnsToTheMainView(logger as Test.Logger) as Boolean {
+    var enabled = Properties.getValue("enabled");
+    if (!(enabled instanceof Boolean)) {
+        logger.error("El estado de los avisos no es booleano");
+        return false;
+    }
+    var app = waterApp();
+    var previousReminder = app.reminder;
+    var previousLast = Storage.getValue("lastReminder");
+    app.reminder = false;
+    var main = app.createRootView();
+    Storage.setValue("lastReminder", 100);
+    app.onBackgroundData(101);
+    var reminder = app.createRootView();
+    app.onBackgroundData(101);
+    var repeated = app.createRootView();
+    app.onBackgroundData(102);
+    app.save("enabled", enabled);
+    var saved = app.createRootView();
+    Storage.setValue("lastReminder", previousLast);
+    app.reminder = previousReminder;
+    app.refreshRootView();
+    Test.assert(!(main instanceof ReminderView));
+    Test.assert(reminder instanceof ReminderView);
+    Test.assert(!(repeated instanceof ReminderView));
+    Test.assert(!(saved instanceof ReminderView));
+    return true;
+}
 
 (:test)
 function debugReminderIsOneMinuteAfterOpeningAndRespectsMinimumSpacing(logger as Test.Logger) as Boolean {
@@ -75,9 +297,9 @@ function pendingDebugKeepsItsDeadlineAndExpiresWithoutRepeating(logger as Test.L
 
 (:test)
 function settingsMenusRefreshWithoutReadingNavigationAsProperty(logger as Test.Logger) as Boolean {
-    var menu = new SettingsMenu(false);
+    var menu = new SettingsMenu();
     menu.refresh();
-    var days = new SettingsMenu(true);
+    var days = new DaysMenu();
     days.refresh();
     var names = [Rez.Strings.Monday, Rez.Strings.Tuesday, Rez.Strings.Wednesday,
                  Rez.Strings.Thursday, Rez.Strings.Friday, Rez.Strings.Saturday, Rez.Strings.Sunday];
@@ -282,7 +504,7 @@ function minimumSpacingDefersNearbyReminder(logger as Test.Logger) as Boolean {
 
 (:test)
 function intervalEditorConfirmsEachDigitOnTheSameView(logger as Test.Logger) as Boolean {
-    var editor = new IntervalView(text(Rez.Strings.Interval), 60);
+    var editor = new IntervalController(text(Rez.Strings.Interval), 60);
     for (var i = 0; i < 5; i += 1) {
         editor.change(-1);
     }
@@ -299,7 +521,7 @@ function intervalEditorConfirmsEachDigitOnTheSameView(logger as Test.Logger) as 
 
 (:test)
 function intervalEditorRejectsInvalidValuesAndAllowsCorrection(logger as Test.Logger) as Boolean {
-    var editor = new IntervalView(text(Rez.Strings.Interval), 15);
+    var editor = new IntervalController(text(Rez.Strings.Interval), 15);
     Test.assert(!editor.confirm());
     editor.change(-1);
     Test.assertEqual(editor.value, 14);
@@ -324,7 +546,7 @@ function intervalEditorRejectsInvalidValuesAndAllowsCorrection(logger as Test.Lo
 (:test)
 function intervalEditorDoesNotPersistLegacyValuesOrCancelledDrafts(logger as Test.Logger) as Boolean {
     var previous = Properties.getValue("intervalMinutes");
-    var editor = new IntervalView(text(Rez.Strings.Interval), 5);
+    var editor = new IntervalController(text(Rez.Strings.Interval), 5);
     Test.assertEqual(editor.value, 15);
     Test.assert(editor.error != null);
     editor.change(-1);
@@ -336,7 +558,7 @@ function intervalEditorDoesNotPersistLegacyValuesOrCancelledDrafts(logger as Tes
 
 (:test)
 function timeEditorRestrictsHourDigitsAndResetsInvalidUnits(logger as Test.Logger) as Boolean {
-    var editor = new TimeView("startTime", text(Rez.Strings.StartHour), 19 * 60 + 30);
+    var editor = new TimeController("startTime", text(Rez.Strings.StartHour), 19 * 60 + 30);
     editor.change(1);
     Test.assertEqual(editor.value, 2030);
     Test.assert(!editor.confirm());
@@ -361,7 +583,7 @@ function timeEditorRestrictsHourDigitsAndResetsInvalidUnits(logger as Test.Logge
     Test.assert(!editor.confirm());
     Test.assert(!editor.confirm());
     Test.assert(editor.confirm());
-    var midnight = new TimeView("endTime", text(Rez.Strings.EndHour), 0);
+    var midnight = new TimeController("endTime", text(Rez.Strings.EndHour), 0);
     for (var i = 0; i < 3; i += 1) {
         Test.assert(!midnight.confirm());
     }
@@ -371,7 +593,7 @@ function timeEditorRestrictsHourDigitsAndResetsInvalidUnits(logger as Test.Logge
 
 (:test)
 function timeEditorWrapsMinutesWithinValidDigitRanges(logger as Test.Logger) as Boolean {
-    var editor = new TimeView("endTime", text(Rez.Strings.EndHour), 1439);
+    var editor = new TimeController("endTime", text(Rez.Strings.EndHour), 1439);
     Test.assert(!editor.confirm());
     Test.assert(!editor.confirm());
     editor.change(1);
@@ -391,8 +613,8 @@ function timeEditorWrapsMinutesWithinValidDigitRanges(logger as Test.Logger) as 
 
 (:test)
 function combinedTimesCancelWithoutChangingStoredValuesOrGoalEditor(logger as Test.Logger) as Boolean {
-    var menu = new SettingsMenu(false);
-    var delegate = new SettingsDelegate(menu, false);
+    var menu = new SettingsMenu();
+    var delegate = new SettingsController(menu);
     var keys = ["startTime", "endTime"];
     for (var i = 0; i < keys.size(); i += 1) {
         var previous = Properties.getValue(keys[i]);
@@ -400,8 +622,8 @@ function combinedTimesCancelWithoutChangingStoredValuesOrGoalEditor(logger as Te
             logger.error("El horario guardado no es numerico");
             return false;
         }
-        var editor = delegate.createNumberEditor(keys[i], text(Rez.Strings.Settings), previous);
-        Test.assert(editor instanceof TimeView);
+        var editor = delegate.createEditorController(keys[i], text(Rez.Strings.Settings), previous);
+        Test.assert(editor instanceof TimeController);
         editor.change(1);
         for (var digit = 0; digit < 3; digit += 1) {
             Test.assert(!editor.confirm());
@@ -412,16 +634,16 @@ function combinedTimesCancelWithoutChangingStoredValuesOrGoalEditor(logger as Te
         Test.assert(editor.goBack());
         Test.assertEqual(Properties.getValue(keys[i]), previous);
     }
-    var aboveRange = new TimeView("startTime", text(Rez.Strings.StartHour), 1440);
+    var aboveRange = new TimeController("startTime", text(Rez.Strings.StartHour), 1440);
     Test.assertEqual(aboveRange.value, 2359);
     Test.assert(aboveRange.error != null);
     Test.assert(aboveRange.goBack());
-    var belowRange = new TimeView("endTime", text(Rez.Strings.EndHour), -1);
+    var belowRange = new TimeController("endTime", text(Rez.Strings.EndHour), -1);
     Test.assertEqual(belowRange.value, 0);
     Test.assert(belowRange.error != null);
     Test.assert(belowRange.goBack());
-    var goal = delegate.createNumberEditor("goalMl", text(Rez.Strings.Goal), 2000);
-    Test.assert(!(goal instanceof DigitView));
+    var goal = delegate.createEditorController("goalMl", text(Rez.Strings.Goal), 2000);
+    Test.assert(!(goal instanceof DigitController));
     goal.change(1);
     Test.assertEqual(goal.value, 2050);
     Test.assert(goal.confirm());
@@ -437,10 +659,10 @@ function timesSaveMinutesFromMidnightAndRefreshMenu(logger as Test.Logger) as Bo
     }
     Properties.setValue("startTime", 570);
     Properties.setValue("endTime", 1305);
-    var menu = new SettingsMenu(false);
-    var delegate = new SettingsDelegate(menu, false);
-    var start = delegate.createNumberEditor("startTime", text(Rez.Strings.StartHour), 570);
-    var end = delegate.createNumberEditor("endTime", text(Rez.Strings.EndHour), 1305);
+    var menu = new SettingsMenu();
+    var delegate = new SettingsController(menu);
+    var start = delegate.createEditorController("startTime", text(Rez.Strings.StartHour), 570);
+    var end = delegate.createEditorController("endTime", text(Rez.Strings.EndHour), 1305);
     start.change(1);
     start.confirm();
     start.confirm();

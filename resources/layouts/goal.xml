@@ -1,0 +1,17 @@
+<layout id="GoalLayout">
+    <drawable id="background" class="LayoutBackground">
+        <param name="ink">$.Theme.BACKGROUND</param>
+    </drawable>
+    <label id="title" font="Graphics.FONT_SMALL" class="LayoutText">
+        <param name="ink">$.Theme.ACCENT</param>
+    </label>
+    <label id="value" font="Graphics.FONT_NUMBER_MILD" class="LayoutText">
+        <param name="ink">$.Theme.TEXT</param>
+    </label>
+    <label id="editHint" font="Graphics.FONT_XTINY" text="@Strings.EditHint" class="LayoutText">
+        <param name="ink">$.Theme.MUTED</param>
+    </label>
+    <label id="saveHint" font="Graphics.FONT_XTINY" text="@Strings.SaveHint" class="LayoutText">
+        <param name="ink">$.Theme.MUTED</param>
+    </label>
+</layout>

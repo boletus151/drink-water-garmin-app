@@ -1,0 +1,32 @@
+<layout id="WaterLayout">
+    <drawable id="background" class="LayoutBackground">
+        <param name="ink">$.Theme.BACKGROUND</param>
+    </drawable>
+    <label id="title" font="Graphics.FONT_SMALL" text="@Strings.AppName" class="LayoutText">
+        <param name="ink">$.Theme.ACCENT</param>
+    </label>
+    <label id="status" font="Graphics.FONT_XTINY" class="LayoutText">
+        <param name="ink">$.Theme.TEXT</param>
+    </label>
+    <label id="content" font="Graphics.FONT_XTINY" class="LayoutText">
+        <param name="ink">$.Theme.TEXT</param>
+    </label>
+    <label id="schedule" font="Graphics.FONT_XTINY" class="LayoutText">
+        <param name="ink">$.Theme.MUTED</param>
+    </label>
+    <label id="next" font="Graphics.FONT_XTINY" class="LayoutText">
+        <param name="ink">$.Theme.TEXT</param>
+    </label>
+    <label id="errorTitle" font="Graphics.FONT_XTINY" text="@Strings.InvalidSettings" class="LayoutText">
+        <param name="ink">$.Theme.WARNING</param>
+    </label>
+    <label id="errorDetail" font="Graphics.FONT_XTINY" class="LayoutText">
+        <param name="ink">$.Theme.WARNING</param>
+    </label>
+    <label id="toggleHint" font="Graphics.FONT_XTINY" class="LayoutText">
+        <param name="ink">$.Theme.MUTED</param>
+    </label>
+    <label id="menuHint" font="Graphics.FONT_XTINY" text="@Strings.MenuHint" class="LayoutText">
+        <param name="ink">$.Theme.MUTED</param>
+    </label>
+</layout>

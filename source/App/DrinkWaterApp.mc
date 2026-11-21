@@ -11,6 +11,7 @@ import Toybox.WatchUi;
 class DrinkWaterApp extends Application.AppBase {
     var reminder as Boolean = false;
     var scheduleError as Boolean = false;
+    var visibleRoot as BaseWaterView? = null;
 
     function initialize() {
         AppBase.initialize();
@@ -27,7 +28,22 @@ class DrinkWaterApp extends Application.AppBase {
             System.println("DrinkWater DEBUG: aviso en " + (target.value() - now.value()).toString() + " s");
         }
         reschedule();
-        return [new WaterView(), new WaterDelegate()];
+        var view = createRootView();
+        return [view, view.controller];
+    }
+
+    (:typecheck(disableBackgroundCheck))
+    function createRootView() as BaseWaterView {
+        return reminder ? new ReminderView() : new WaterView();
+    }
+
+    (:typecheck(disableBackgroundCheck))
+    function refreshRootView() as Void {
+        var view = visibleRoot;
+        if (view != null && reminder != (view instanceof ReminderView)) {
+            var nextView = createRootView();
+            WatchUi.switchToView(nextView, nextView.controller, WatchUi.SLIDE_IMMEDIATE);
+        }
     }
 
     function getServiceDelegate() as [System.ServiceDelegate] {
@@ -44,6 +60,7 @@ class DrinkWaterApp extends Application.AppBase {
             var previous = Storage.getValue("lastReminder");
             reminder = !(previous instanceof Number) || data > previous;
             Storage.setValue("lastReminder", data);
+            refreshRootView();
             WatchUi.requestUpdate();
         }
     }
@@ -70,6 +87,7 @@ class DrinkWaterApp extends Application.AppBase {
         Properties.setValue(key, value);
         reminder = false;
         reschedule();
+        refreshRootView();
         WatchUi.requestUpdate();
     }
 

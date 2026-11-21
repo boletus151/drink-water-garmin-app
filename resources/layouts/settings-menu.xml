@@ -1,0 +1,8 @@
+<layout id="SettingsMenuLayout">
+    <drawable id="background" class="LayoutBackground">
+        <param name="ink">$.Theme.BACKGROUND</param>
+    </drawable>
+    <label id="title" font="Graphics.FONT_SMALL" text="@Strings.Settings" class="LayoutText">
+        <param name="ink">$.Theme.ACCENT</param>
+    </label>
+</layout>
