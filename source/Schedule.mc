@@ -1,4 +1,5 @@
 import Toybox.Background;
+import Toybox.Application.Storage;
 import Toybox.Lang;
 import Toybox.System;
 import Toybox.Time;
@@ -9,6 +10,35 @@ module Schedule {
     const MINIMUM_SECONDS = 300;
     const MAX_DELAY_SECONDS = 60;
     const CHECKPOINT_SECONDS = 3600;
+
+    function debugEventTime(config as WaterConfig, opened as Time.Moment,
+                            lastEvent as Time.Moment?, debug as Boolean) as Time.Moment? {
+        if (!debug || !config.enabled || config.error != null) {
+            return null;
+        }
+        var target = opened.add(new Time.Duration(60));
+        if (lastEvent != null && target.value() < lastEvent.value() + MINIMUM_SECONDS) {
+            target = lastEvent.add(new Time.Duration(MINIMUM_SECONDS));
+        }
+        return target;
+    }
+
+    function debugDueKey(config as WaterConfig, now as Time.Moment,
+                         target as Number?, debug as Boolean) as Number? {
+        if (!debug || !config.enabled || config.error != null || target == null ||
+            now.value() < target || now.value() - target > MAX_DELAY_SECONDS) {
+            return null;
+        }
+        return civilSeconds(Gregorian.info(now, Time.FORMAT_SHORT));
+    }
+
+    function pendingDebug(config as WaterConfig, earliest as Time.Moment) as Time.Moment? {
+        if (!Config.DEBUG || !config.enabled || config.error != null) {
+            return null;
+        }
+        var target = Storage.getValue("debugReminderTime");
+        return target instanceof Number && target >= earliest.value() ? new Time.Moment(target) : null;
+    }
 
     // Gregorian numbers Sunday as 1; settings run from Monday to Sunday.
     function dayIndex(weekday as Number) as Number {
@@ -122,7 +152,10 @@ module Schedule {
         if (config.error != null) {
             System.println("DrinkWater: " + config.error);
         }
-        var nextTime = eventTime(config, earliest, Background.getLastTemporalEventTime());
+        var nextTime = pendingDebug(config, earliest);
+        if (nextTime == null) {
+            nextTime = eventTime(config, earliest, Background.getLastTemporalEventTime());
+        }
         if (nextTime == null) {
             Background.deleteTemporalEvent();
             return;

@@ -17,7 +17,11 @@ class WaterService extends System.ServiceDelegate {
         if (!(last instanceof Number)) {
             last = Storage.getValue("lastReminder");
         }
-        var key = Schedule.dueKey(config, now);
+        var target = Storage.getValue("debugReminderTime");
+        var key = Schedule.debugDueKey(config, now, target instanceof Number ? target : null, Config.DEBUG);
+        if (key == null) {
+            key = Schedule.dueKey(config, now);
+        }
         if (key != null && (!(last instanceof Number) || key > last)) {
             Background.requestApplicationWake(text(Rez.Strings.Reminder));
             last = key;

@@ -63,6 +63,22 @@ Al actualizar, se mantienen las propiedades existentes. Si un intervalo antiguo 
 
 La regla de inicio anterior al fin no cambia: si al editar los extremos el horario queda temporalmente invalido, los avisos se suspenden hasta corregirlo.
 
+### Apariencia
+
+La pantalla principal (tambien al aceptar un recordatorio), los menus de ajustes y dias, y los editores comparten un fondo negro con acentos azul agua. El texto principal es blanco, las indicaciones secundarias son gris claro y los errores aparecen en ambar, siempre acompanados de texto. La fila del menu seleccionada tiene fondo azul oscuro; la cifra activa, fondo azul agua y texto negro. Los botones y el guardado no cambian.
+
+El dialogo inicial "Recuerda beber agua" y los ajustes del movil conservan la apariencia del sistema Garmin: la aplicacion no controla sus colores.
+
+El estilo se centraliza en [source/Theme.mc](source/Theme.mc): paleta por roles, fuentes y dibujo de titulos, lineas, numeros, cifras seleccionadas y filas de menu. Las pantallas conservan el contenido, las posiciones y la logica, y delegan el dibujo al tema. Para cambiar el estilo, modifica ese archivo y recompila; todavia no se cargan temas desde XML ni se seleccionan en tiempo de ejecucion.
+
+### Prueba rapida del aviso
+
+La constante `Config.DEBUG` en [source/Config.mc](source/Config.mc) esta en `true` para pruebas. Al abrir la app con los avisos activados y una configuracion valida, solicita un unico aviso de prueba **60 segundos despues de abrir**, aunque sea fuera del horario o de los dias activos. Sal inmediatamente con BACK para probarlo con la aplicacion cerrada. Salir o editar ajustes no reinicia la cuenta atras; desactivar los avisos cancela el evento. Abrir de nuevo la app inicia otra prueba, tambien al abrirla desde un aviso.
+
+Si el servicio se ha ejecutado recientemente, la prueba se aplaza hasta cumplir los cinco minutos minimos de Garmin. La pantalla principal muestra esa hora en "Proximo" y la consola informa de la espera en segundos. El firmware sigue controlando cuando presenta el dialogo; no se garantiza una alarma exacta. Se descarta un evento con mas de 60 segundos de retraso y despues continua el calendario normal.
+
+Para volver al comportamiento normal, cambia `const DEBUG = false;`, ejecuta `make build` y carga de nuevo el ejecutable. **Desactiva DEBUG antes de distribuir o usar la app normalmente.** No modifica tus ajustes ni requiere un nuevo esquema de propiedades.
+
 Cada extremo se guarda como un unico numero de minutos desde medianoche: `startTime` y `endTime`, entre 0 y 1439. Por ejemplo, 09:30 se guarda como 570. En el reloj siempre se muestra y edita HH:MM. En los ajustes de Connect IQ del movil se introduce ese numero de minutos; el SDK no ofrece un tipo de ajuste de hora HH:MM y se evita almacenar o parsear texto.
 
 **Al actualizar desde una version con horas y minutos separados, vuelve a configurar el inicio y el fin.** No hay migracion: las propiedades antiguas dejan de utilizarse y los valores predeterminados nuevos son 09:00 y 21:00. El objetivo, intervalo y dias activos conservan sus propiedades.
@@ -172,6 +188,8 @@ No hay servidor, analitica ni recogida de datos de consumo. Un aviso no confirma
 
 ## Validacion de esta entrega
 
+- Modo DEBUG: compilacion estricta y paquete generados sin avisos; **21 pruebas aprobadas**, incluidas la espera exacta de 60 segundos, el limite minimo de Garmin, la desactivacion del modo y la conservacion/caducidad del plazo. La presentacion real del aviso sigue pendiente de prueba manual.
+- Mejora de color: compilacion estricta de aplicacion y pruebas sin avisos; **18 pruebas aprobadas**, sin fallos ni errores. La comprobacion visual de la nueva paleta queda pendiente: la automatizacion del simulador fue bloqueada por la proteccion de foco de macOS.
 - Compilacion estricta sin avisos con SDK oficial **9.3.0**, perfil **fr645 (3.1.6)**.
 - En una entrega anterior se aprobaron **18 pruebas**, sin fallos ni errores. Las pruebas de horario se han actualizado para la seleccion restringida de cifras y el almacenamiento en minutos desde medianoche; no se han ejecutado en esta mejora, a peticion de la usuaria.
 - Verificados en la entrega anterior: pantalla sin recortes, interruptor, apertura de ajustes, edicion y guardado del objetivo e intervalo.

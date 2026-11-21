@@ -19,6 +19,13 @@ class DrinkWaterApp extends Application.AppBase {
     // These UI callbacks run only in the foreground; the app class also hosts the service entry.
     (:typecheck(disableBackgroundCheck))
     function getInitialView() as [WatchUi.Views] or [WatchUi.Views, WatchUi.InputDelegates] {
+        var now = Time.now();
+        var target = Schedule.debugEventTime(Config.read(), now,
+            Background.getLastTemporalEventTime(), Config.DEBUG);
+        Storage.setValue("debugReminderTime", target != null ? target.value() : null);
+        if (target != null) {
+            System.println("DrinkWater DEBUG: aviso en " + (target.value() - now.value()).toString() + " s");
+        }
         reschedule();
         return [new WaterView(), new WaterDelegate()];
     }

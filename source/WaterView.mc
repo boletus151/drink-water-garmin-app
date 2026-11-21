@@ -19,41 +19,41 @@ class WaterView extends WatchUi.View {
         View.initialize();
     }
 
-    function line(dc as Graphics.Dc, y as Number, value as String) as Void {
-        dc.drawText(dc.getWidth() / 2, y, Graphics.FONT_XTINY, value, Graphics.TEXT_JUSTIFY_CENTER);
-    }
-
     function onUpdate(dc as Graphics.Dc) as Void {
         var config = Config.read();
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_BLACK);
-        dc.clear();
-        dc.drawText(dc.getWidth() / 2, 24, Graphics.FONT_SMALL,
-            text(Rez.Strings.AppName),
-            Graphics.TEXT_JUSTIFY_CENTER);
-        line(dc, 57, text(config.enabled ? Rez.Strings.Enabled : Rez.Strings.Disabled));
+        Theme.clear(dc);
+        Theme.title(dc, 24, text(Rez.Strings.AppName), false);
+        Theme.line(dc, 57, text(config.enabled ? Rez.Strings.Enabled : Rez.Strings.Disabled),
+            config.enabled ? Theme.TEXT : Theme.MUTED);
         var error = config.error;
         if (waterApp().scheduleError || error != null) {
-            line(dc, 92, text(Rez.Strings.InvalidSettings));
+            Theme.line(dc, 92, text(Rez.Strings.InvalidSettings), Theme.WARNING);
             if (waterApp().scheduleError) {
-                line(dc, 118, text(Rez.Strings.ScheduleError));
+                Theme.line(dc, 118, text(Rez.Strings.ScheduleError), Theme.WARNING);
             } else if (error != null) {
-                line(dc, 118, error);
+                Theme.line(dc, 118, error, Theme.WARNING);
             }
         } else {
-            line(dc, 87, waterApp().reminder ? text(Rez.Strings.Reminder) : config.goalMl.toString() + " ml / dia");
-            line(dc, 111, clockText(config.startMinute) + " - " + clockText(config.endMinute) +
-                " / " + config.intervalMinutes.toString() + " min");
-            var nextTime = Schedule.next(config, Time.now().add(new Time.Duration(1)));
+            Theme.line(dc, 87, waterApp().reminder ? text(Rez.Strings.Reminder) : config.goalMl.toString() + " ml / dia",
+                waterApp().reminder ? Theme.ACCENT : Theme.TEXT);
+            Theme.line(dc, 111, clockText(config.startMinute) + " - " + clockText(config.endMinute) +
+                " / " + config.intervalMinutes.toString() + " min", Theme.MUTED);
+            var earliest = Time.now().add(new Time.Duration(1));
+            var nextTime = Schedule.pendingDebug(config, earliest);
+            if (nextTime == null) {
+                nextTime = Schedule.next(config, earliest);
+            }
             if (nextTime != null) {
                 var info = Gregorian.info(nextTime, Time.FORMAT_SHORT);
-                line(dc, 141, text(Rez.Strings.Next) + ": " + info.day.format("%02d") + "/" +
-                    (info.month as Number).format("%02d") + " " + clockText(info.hour * 60 + info.min));
+                Theme.line(dc, 141, text(Rez.Strings.Next) + ": " + info.day.format("%02d") + "/" +
+                    (info.month as Number).format("%02d") + " " + clockText(info.hour * 60 + info.min), Theme.TEXT);
             } else {
-                line(dc, 141, text(Rez.Strings.NoNext));
+                Theme.line(dc, 141, text(Rez.Strings.NoNext), Theme.TEXT);
             }
         }
-        line(dc, 175, text(config.enabled ? Rez.Strings.DeactivateHint : Rez.Strings.ActivateHint));
-        line(dc, 195, text(Rez.Strings.MenuHint));
+        var hintStyle = waterApp().scheduleError || error != null ? Theme.WARNING : Theme.MUTED;
+        Theme.line(dc, 175, text(config.enabled ? Rez.Strings.DeactivateHint : Rez.Strings.ActivateHint), hintStyle);
+        Theme.line(dc, 195, text(Rez.Strings.MenuHint), hintStyle);
     }
 }
 

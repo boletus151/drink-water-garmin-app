@@ -34,7 +34,7 @@
     <string id="InvalidHours" scope="background">Inicio debe ser menor que fin</string>
     <string id="NoDays" scope="background">Selecciona algun dia</string>
     <string id="InvalidInterval" scope="background">Intervalo: 15 a 60 min</string>
-    <string id="InvalidGoal" scope="background">Objetivo: 50 a 10000 ml</string>
+    <string id="InvalidGoal" scope="background">Objetivo: 50 a 2000 ml</string>
     <string id="UnsupportedVersion" scope="background">Version de ajustes no compatible</string>
     <string id="ScheduleError">Error al programar avisos</string>
 </resources>

@@ -3,11 +3,43 @@ import Toybox.Graphics;
 import Toybox.Lang;
 import Toybox.WatchUi;
 
-class SettingsMenu extends WatchUi.Menu2 {
+class SettingsTitle extends WatchUi.Drawable {
+    var _title as String;
+
+    function initialize(title as String) {
+        Drawable.initialize({});
+        _title = title;
+    }
+
+    function draw(dc as Graphics.Dc) as Void {
+        Theme.clear(dc);
+        Theme.title(dc, dc.getHeight() / 2, _title, true);
+    }
+}
+
+class SettingsItem extends WatchUi.CustomMenuItem {
+    function initialize(label as String, subLabel as String?, key as String) {
+        CustomMenuItem.initialize(key, {});
+        setLabel(label);
+        setSubLabel(subLabel);
+    }
+
+    function draw(dc as Graphics.Dc) as Void {
+        var label = getLabel();
+        var subLabel = getSubLabel();
+        Theme.menuItem(dc, label instanceof String ? label : null,
+            subLabel instanceof String ? subLabel : null, isFocused());
+    }
+}
+
+class SettingsMenu extends WatchUi.CustomMenu {
     var _count as Number;
 
     function initialize(daysOnly as Boolean) {
-        Menu2.initialize({:title => text(daysOnly ? Rez.Strings.Days : Rez.Strings.Settings)});
+        CustomMenu.initialize(Theme.MENU_ITEM_HEIGHT, Theme.BACKGROUND, {
+            :focusItemHeight => Theme.MENU_FOCUS_HEIGHT,
+            :title => new SettingsTitle(text(daysOnly ? Rez.Strings.Days : Rez.Strings.Settings))
+        });
         _count = daysOnly ? 7 : 6;
         if (daysOnly) {
             var names = [Rez.Strings.Monday, Rez.Strings.Tuesday, Rez.Strings.Wednesday,
@@ -21,12 +53,12 @@ class SettingsMenu extends WatchUi.Menu2 {
             addSetting("intervalMinutes", Rez.Strings.Interval);
             addSetting("startTime", Rez.Strings.StartHour);
             addSetting("endTime", Rez.Strings.EndHour);
-            addItem(new WatchUi.MenuItem(text(Rez.Strings.Days), null, "days", {}));
+            addItem(new SettingsItem(text(Rez.Strings.Days), null, "days"));
         }
     }
 
     function addSetting(key as String, title as ResourceId) as Void {
-        addItem(new WatchUi.MenuItem(text(title), valueText(key), key, {}));
+        addItem(new SettingsItem(text(title), valueText(key), key));
     }
 
     function valueText(key as String) as String {
@@ -144,13 +176,11 @@ class NumberView extends WatchUi.View {
     }
 
     function onUpdate(dc as Graphics.Dc) as Void {
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_BLACK);
-        dc.clear();
-        var center = dc.getWidth() / 2;
-        dc.drawText(center, 42, Graphics.FONT_SMALL, title, Graphics.TEXT_JUSTIFY_CENTER);
-        dc.drawText(center, 87, Graphics.FONT_NUMBER_MILD, value.toString(), Graphics.TEXT_JUSTIFY_CENTER);
-        dc.drawText(center, 162, Graphics.FONT_XTINY, text(Rez.Strings.EditHint), Graphics.TEXT_JUSTIFY_CENTER);
-        dc.drawText(center, 185, Graphics.FONT_XTINY, text(Rez.Strings.SaveHint), Graphics.TEXT_JUSTIFY_CENTER);
+        Theme.clear(dc);
+        Theme.title(dc, 42, title, false);
+        Theme.number(dc, 87, value.toString());
+        Theme.line(dc, 162, text(Rez.Strings.EditHint), Theme.MUTED);
+        Theme.line(dc, 185, text(Rez.Strings.SaveHint), Theme.MUTED);
     }
 }
 
@@ -212,33 +242,26 @@ class DigitView extends NumberView {
     }
 
     function onUpdate(dc as Graphics.Dc) as Void {
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_BLACK);
-        dc.clear();
+        Theme.clear(dc);
         var center = dc.getWidth() / 2;
-        dc.drawText(center, 42, Graphics.FONT_SMALL, title, Graphics.TEXT_JUSTIFY_CENTER);
+        Theme.title(dc, 42, title, false);
         var time = places.size() == 4;
         if (time) {
-            dc.drawText(center, 87, Graphics.FONT_NUMBER_MILD, ":", Graphics.TEXT_JUSTIFY_CENTER);
+            Theme.number(dc, 87, ":");
         }
         for (var i = 0; i < places.size(); i += 1) {
             var x = center + (time ? -63 + i * 38 + (i >= 2 ? 12 : 0) : (i == 0 ? -22 : 22));
             var width = time ? 34 : 40;
-            var selected = i == activeDigit;
-            dc.setColor(selected ? Graphics.COLOR_WHITE : Graphics.COLOR_BLACK, Graphics.COLOR_BLACK);
-            dc.fillRectangle(x - width / 2, 84, width, dc.getFontHeight(Graphics.FONT_NUMBER_MILD) + 6);
-            dc.setColor(selected ? Graphics.COLOR_BLACK : Graphics.COLOR_WHITE,
-                selected ? Graphics.COLOR_WHITE : Graphics.COLOR_BLACK);
             var digit = (value / places[i]).toNumber() % 10;
-            dc.drawText(x, 87, Graphics.FONT_NUMBER_MILD, digit.toString(), Graphics.TEXT_JUSTIFY_CENTER);
+            Theme.digit(dc, x, 87, width, digit.toString(), i == activeDigit);
         }
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_BLACK);
         var message = error;
-        dc.drawText(center, 145, Graphics.FONT_XTINY,
-            message != null ? message : text(_range), Graphics.TEXT_JUSTIFY_CENTER);
-        dc.drawText(center, 174, Graphics.FONT_XTINY, text(Rez.Strings.EditHint), Graphics.TEXT_JUSTIFY_CENTER);
-        dc.drawText(center, 195, Graphics.FONT_XTINY,
+        Theme.line(dc, 145, message != null ? message : text(_range),
+            message != null ? Theme.WARNING : Theme.MUTED);
+        Theme.line(dc, 174, text(Rez.Strings.EditHint), Theme.MUTED);
+        Theme.line(dc, 195,
             text(activeDigit < places.size() - 1 ? Rez.Strings.NextDigitHint : Rez.Strings.SaveHint),
-            Graphics.TEXT_JUSTIFY_CENTER);
+            Theme.MUTED);
     }
 }
 

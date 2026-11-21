@@ -1,8 +1,77 @@
 import Toybox.Application.Properties;
+import Toybox.Application.Storage;
 import Toybox.Lang;
 import Toybox.Test;
 import Toybox.Time;
 import Toybox.Time.Gregorian;
+
+(:test)
+function debugReminderIsOneMinuteAfterOpeningAndRespectsMinimumSpacing(logger as Test.Logger) as Boolean {
+    var config = new WaterConfig();
+    var opened = new Time.Moment(1000000);
+    var target = Schedule.debugEventTime(config, opened, null, true);
+    Test.assert(target != null);
+    if (target != null) {
+        Test.assertEqual(target.value(), opened.value() + 60);
+    }
+    target = Schedule.debugEventTime(config, opened, new Time.Moment(opened.value() - 30), true);
+    Test.assert(target != null);
+    if (target != null) {
+        Test.assertEqual(target.value(), opened.value() + 270);
+    }
+    Test.assert(Schedule.debugEventTime(config, opened, null, false) == null);
+    config.enabled = false;
+    Test.assert(Schedule.debugEventTime(config, opened, null, true) == null);
+    config.enabled = true;
+    config.error = text(Rez.Strings.InvalidSettings);
+    Test.assert(Schedule.debugEventTime(config, opened, null, true) == null);
+    return true;
+}
+
+(:test)
+function debugReminderIgnoresScheduleButRejectsEarlyLateAndDisabledEvents(logger as Test.Logger) as Boolean {
+    var config = new WaterConfig();
+    var target = 1000060;
+    var weekday = Gregorian.info(new Time.Moment(target), Time.FORMAT_SHORT).day_of_week as Number;
+    config.days[Schedule.dayIndex(weekday)] = false;
+    Test.assert(Schedule.dueKey(config, new Time.Moment(target)) == null);
+    Test.assert(Schedule.debugDueKey(config, new Time.Moment(target - 1), target, true) == null);
+    Test.assert(Schedule.debugDueKey(config, new Time.Moment(target), target, true) != null);
+    Test.assert(Schedule.debugDueKey(config, new Time.Moment(target + 60), target, true) != null);
+    Test.assert(Schedule.debugDueKey(config, new Time.Moment(target + 61), target, true) == null);
+    Test.assert(Schedule.debugDueKey(config, new Time.Moment(target), target, false) == null);
+    Test.assert(Schedule.debugDueKey(config, new Time.Moment(target), null, true) == null);
+    config.enabled = false;
+    Test.assert(Schedule.debugDueKey(config, new Time.Moment(target), target, true) == null);
+    config.enabled = true;
+    config.error = text(Rez.Strings.InvalidSettings);
+    Test.assert(Schedule.debugDueKey(config, new Time.Moment(target), target, true) == null);
+    return true;
+}
+
+(:test)
+function pendingDebugKeepsItsDeadlineAndExpiresWithoutRepeating(logger as Test.Logger) as Boolean {
+    var previous = Storage.getValue("debugReminderTime");
+    var config = new WaterConfig();
+    Storage.setValue("debugReminderTime", 1000060);
+    var first = Schedule.pendingDebug(config, new Time.Moment(1000001));
+    var later = Schedule.pendingDebug(config, new Time.Moment(1000030));
+    var expired = Schedule.pendingDebug(config, new Time.Moment(1000061));
+    config.enabled = false;
+    var disabled = Schedule.pendingDebug(config, new Time.Moment(1000001));
+    Storage.setValue("debugReminderTime", previous);
+    if (Config.DEBUG) {
+        Test.assert(first != null && later != null);
+        if (first != null && later != null) {
+            Test.assertEqual(first.value(), 1000060);
+            Test.assertEqual(later.value(), first.value());
+        }
+    } else {
+        Test.assert(first == null && later == null);
+    }
+    Test.assert(expired == null && disabled == null);
+    return true;
+}
 
 (:test)
 function settingsMenusRefreshWithoutReadingNavigationAsProperty(logger as Test.Logger) as Boolean {

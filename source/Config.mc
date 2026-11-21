@@ -41,6 +41,7 @@ class WaterConfig {
 
 (:background)
 module Config {
+    const DEBUG = true;
     const MIN_INTERVAL = 15;
     const MAX_INTERVAL = 60;
 
