@@ -9,7 +9,7 @@
     <string id="GoalReached">¡Enhorabuena! Objetivo cumplido</string>
     <string id="GoalLabel">Objetivo</string>
     <string id="ConsumedLabel">Llevas</string>
-    <string id="RemainingLabel">Quedan</string>
+    <string id="RemainingLabel">Te quedan</string>
     <string id="GoalPaused">Sin mas avisos hoy</string>
     <string id="RecordIntake">Registrar toma</string>
     <string id="Serving">Cantidad toma (ml)</string>
@@ -41,7 +41,7 @@
     <string id="InvalidHourValue">Hora: 00 a 23</string>
     <string id="InvalidMinuteValue">Minutos: 00 a 59</string>
     <string id="PreviousValueInvalid">Valor anterior no valido</string>
-    <string id="Next">Proximo</string>
+    <string id="Next">Próximo</string>
     <string id="NoNext">Sin avisos pendientes</string>
     <string id="InvalidSettings" scope="background">Revisa los ajustes</string>
     <string id="InvalidHours" scope="background">Inicio debe ser menor que fin</string>
