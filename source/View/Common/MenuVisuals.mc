@@ -10,7 +10,6 @@ class SettingsTitle extends WatchUi.Drawable {
         Drawable.initialize({});
         _daysOnly = daysOnly;
         _view = new LayoutView();
-        _view.fullScreen = false;
     }
 
     function draw(dc as Graphics.Dc) as Void {
@@ -29,7 +28,6 @@ class SettingsItem extends WatchUi.CustomMenuItem {
         setLabel(label);
         setSubLabel(subLabel);
         _view = new LayoutView();
-        _view.fullScreen = false;
     }
 
     function draw(dc as Graphics.Dc) as Void {

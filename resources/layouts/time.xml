@@ -1,0 +1,30 @@
+<layout id="TimeLayout">
+    <drawable id="background"/>
+    <label id="title" x="50%" y="20%" font="Graphics.FONT_SMALL"
+           text="@Strings.StartHour" color="0x55FFFF"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+    <label id="digit0" x="28%" y="40%" font="Graphics.FONT_NUMBER_MILD"
+           text="0" color="0xFFFFFF" background="Graphics.COLOR_TRANSPARENT"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+    <label id="digit1" x="40%" y="40%" font="Graphics.FONT_NUMBER_MILD"
+           text="9" color="0xFFFFFF" background="Graphics.COLOR_TRANSPARENT"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+    <label id="separator" x="50%" y="40%" font="Graphics.FONT_NUMBER_MILD"
+           text=":" color="0xFFFFFF"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+    <label id="digit2" x="60%" y="40%" font="Graphics.FONT_NUMBER_MILD"
+           text="3" color="0xFFFFFF" background="Graphics.COLOR_TRANSPARENT"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+    <label id="digit3" x="72%" y="40%" font="Graphics.FONT_NUMBER_MILD"
+           text="0" color="0xFFFFFF" background="Graphics.COLOR_TRANSPARENT"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+    <text-area id="range" x="center" y="54%" width="84%" height="14%"
+               font="Graphics.FONT_XTINY" text="@Strings.TimeRange" color="0xAAAAAA"
+               justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+    <label id="editHint" x="50%" y="74%" font="Graphics.FONT_XTINY"
+           text="@Strings.EditHint" color="0xAAAAAA"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+    <label id="confirmHint" x="50%" y="84%" font="Graphics.FONT_XTINY"
+           text="@Strings.NextDigitHint" color="0xAAAAAA"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+</layout>

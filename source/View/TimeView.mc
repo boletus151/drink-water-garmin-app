@@ -6,6 +6,6 @@ class TimeView extends DigitView {
     }
 
     function onLayout(dc as Graphics.Dc) as Void {
-        setLayout(controller.key.equals("startTime") ? Rez.Layouts.StartTimeLayout(dc) : Rez.Layouts.EndTimeLayout(dc));
+        setLayout(Rez.Layouts.TimeLayout(dc));
     }
 }

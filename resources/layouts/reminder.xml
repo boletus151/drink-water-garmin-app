@@ -1,29 +1,27 @@
 <layout id="ReminderLayout">
-    <drawable id="background" class="LayoutBackground">
-        <param name="ink">$.Theme.BACKGROUND</param>
-    </drawable>
-    <label id="title" font="Graphics.FONT_SMALL" text="@Strings.AppName" class="LayoutText">
-        <param name="ink">$.Theme.ACCENT</param>
-    </label>
-    <label id="status" font="Graphics.FONT_XTINY" class="LayoutText">
-        <param name="ink">$.Theme.TEXT</param>
-    </label>
-    <label id="content" font="Graphics.FONT_XTINY" text="@Strings.Reminder" class="LayoutText">
-        <param name="ink">$.Theme.ACCENT</param>
-    </label>
-    <label id="schedule" font="Graphics.FONT_XTINY" class="LayoutText">
-        <param name="ink">$.Theme.MUTED</param>
-    </label>
-    <label id="errorTitle" font="Graphics.FONT_XTINY" text="@Strings.InvalidSettings" class="LayoutText">
-        <param name="ink">$.Theme.WARNING</param>
-    </label>
-    <label id="errorDetail" font="Graphics.FONT_XTINY" class="LayoutText">
-        <param name="ink">$.Theme.WARNING</param>
-    </label>
-    <label id="toggleHint" font="Graphics.FONT_XTINY" class="LayoutText">
-        <param name="ink">$.Theme.MUTED</param>
-    </label>
-    <label id="menuHint" font="Graphics.FONT_XTINY" text="@Strings.MenuHint" class="LayoutText">
-        <param name="ink">$.Theme.MUTED</param>
-    </label>
+    <drawable id="background"/>
+    <label id="title" x="50%" y="14%" font="Graphics.FONT_SMALL"
+           text="@Strings.AppName" color="0x55FFFF"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+    <label id="status" x="50%" y="27%" font="Graphics.FONT_XTINY"
+           text="@Strings.Enabled" color="0xFFFFFF"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+    <label id="content" x="50%" y="43%" font="Graphics.FONT_XTINY"
+           text="@Strings.Reminder" color="0x55FFFF"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+    <label id="schedule" x="50%" y="58%" font="Graphics.FONT_XTINY"
+           text="09:00 - 21:00 / 30 min" color="0xAAAAAA"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+    <label id="errorTitle" x="50%" y="38%" font="Graphics.FONT_XTINY"
+           text="@Strings.InvalidSettings" color="0xFFAA55"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+    <text-area id="errorDetail" x="center" y="44%" width="84%" height="24%"
+               font="Graphics.FONT_XTINY" text="@Strings.ScheduleError" color="0xFFAA55"
+               justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+    <label id="toggleHint" x="50%" y="74%" font="Graphics.FONT_XTINY"
+           text="@Strings.DeactivateHint" color="0xAAAAAA"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+    <label id="menuHint" x="50%" y="86%" font="Graphics.FONT_XTINY"
+           text="@Strings.MenuHint" color="0xAAAAAA"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
 </layout>

@@ -13,10 +13,10 @@ class DigitView extends NumberView {
         for (var i = 0; i < _digits.places.size(); i += 1) {
             var selected = i == _digits.activeDigit;
             var digit = (_digits.value / _digits.places[i]).toNumber() % 10;
-            show("selection" + i.toString(), selected);
             var item = label("digit" + i.toString());
             item.setText(digit.toString());
             item.setColor(selected ? Theme.BACKGROUND : Theme.TEXT);
+            item.setBackgroundColor(selected ? Theme.ACCENT : Graphics.COLOR_TRANSPARENT);
         }
         var message = _digits.error;
         label("range").setText(message != null ? message : text(_digits.rangeId));

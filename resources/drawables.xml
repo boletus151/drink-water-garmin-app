@@ -1,5 +1,7 @@
 <resources>
     <drawables>
         <bitmap id="LauncherIcon" filename="icon.svg"/>
+        <drawable-list id="background" background="0x000000"/>
+        <drawable-list id="focus" background="0x000055"/>
     </drawables>
 </resources>

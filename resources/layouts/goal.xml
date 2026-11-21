@@ -1,17 +1,15 @@
 <layout id="GoalLayout">
-    <drawable id="background" class="LayoutBackground">
-        <param name="ink">$.Theme.BACKGROUND</param>
-    </drawable>
-    <label id="title" font="Graphics.FONT_SMALL" class="LayoutText">
-        <param name="ink">$.Theme.ACCENT</param>
-    </label>
-    <label id="value" font="Graphics.FONT_NUMBER_MILD" class="LayoutText">
-        <param name="ink">$.Theme.TEXT</param>
-    </label>
-    <label id="editHint" font="Graphics.FONT_XTINY" text="@Strings.EditHint" class="LayoutText">
-        <param name="ink">$.Theme.MUTED</param>
-    </label>
-    <label id="saveHint" font="Graphics.FONT_XTINY" text="@Strings.SaveHint" class="LayoutText">
-        <param name="ink">$.Theme.MUTED</param>
-    </label>
+    <drawable id="background"/>
+    <label id="title" x="50%" y="20%" font="Graphics.FONT_SMALL"
+           text="@Strings.Goal" color="0x55FFFF"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+    <label id="value" x="50%" y="43%" font="Graphics.FONT_NUMBER_MILD"
+           text="2000" color="0xFFFFFF"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+    <label id="editHint" x="50%" y="74%" font="Graphics.FONT_XTINY"
+           text="@Strings.EditHint" color="0xAAAAAA"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+    <label id="saveHint" x="50%" y="84%" font="Graphics.FONT_XTINY"
+           text="@Strings.SaveHint" color="0xAAAAAA"
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
 </layout>

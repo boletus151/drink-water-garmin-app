@@ -106,67 +106,38 @@ function layoutVisibilitySkipsHiddenElementsAndResetsWithANewLayout(logger as Te
 }
 
 (:test)
-function automaticLayoutCentersRowsAndReflowsHiddenText(logger as Test.Logger) as Boolean {
-    var sizes = [[200, 180], [240, 240], [320, 320]];
+function nativeLayoutsScaleTextAreasAndKeepHiddenZonesInPlace(logger as Test.Logger) as Boolean {
+    var sizes = [[218, 218], [240, 240], [320, 320]];
     for (var i = 0; i < sizes.size(); i += 1) {
         var buffer = new Graphics.BufferedBitmap({:width => sizes[i][0], :height => sizes[i][1]});
         var dc = buffer.getDc();
-        var view = new LayoutView();
-        var first = new LayoutText({:identifier => "first", :text => "Titulo",
-            :font => Graphics.FONT_SMALL, :ink => Theme.TEXT});
-        var middle = new LayoutText({:identifier => "middle", :text => "Contenido",
-            :font => Graphics.FONT_XTINY, :ink => Theme.TEXT});
-        var last = new LayoutText({:identifier => "last", :text => "Guardar",
-            :font => Graphics.FONT_XTINY, :ink => Theme.TEXT});
-        view.setLayout([first, middle, last]);
+        var view = new WaterView();
+        view.onLayout(dc);
+        view.onUpdate(dc);
+        var next = view.label("next") as WatchUi.TextArea;
+        var error = view.label("errorDetail") as WatchUi.TextArea;
+        var hint = view.label("menuHint");
+        var widthError = next.width - dc.getWidth() * 0.9;
+        var heightError = error.height - dc.getHeight() * 0.24;
+        Test.assert(widthError >= -1 && widthError <= 1);
+        Test.assert(heightError >= -1 && heightError <= 1);
+        Test.assert(view.label("content").locY < error.locY);
+        Test.assert(error.locY + error.height <= hint.locY);
+        var initialY = hint.locY;
+        view.show("content", false);
+        view.show("schedule", false);
+        view.show("next", false);
+        view.show("errorTitle", true);
+        view.show("errorDetail", true);
+        error.setText(text(Rez.Strings.UnsupportedVersion));
         view.drawLayout(dc);
-        Test.assertEqual(first.locX, dc.getWidth() / 2);
-        Test.assertEqual(middle.locX, first.locX);
-        Test.assert(first.locY + first.measuredHeight <= middle.locY);
-        Test.assert(middle.locY + middle.measuredHeight <= last.locY);
-        var centerError = first.locY + last.locY + last.measuredHeight - dc.getHeight();
-        Test.assert(centerError >= -2 && centerError <= 2);
-        var previousTop = first.locY;
-        var previousBottom = last.locY;
-        view.show("middle", false);
-        view.drawLayout(dc);
-        Test.assert(first.locY > previousTop);
-        Test.assert(last.locY < previousBottom);
-        Test.assert(first.locY >= 0 && last.locY + last.measuredHeight <= dc.getHeight());
+        Test.assertEqual(hint.locY, initialY);
     }
     return true;
 }
 
 (:test)
-function roundLayoutUsesAvailableHeightWithoutClippingItsRows(logger as Test.Logger) as Boolean {
-    var buffer = LayoutDrawCounter.buffer(240);
-    var dc = buffer.getDc();
-    var view = new LayoutView();
-    var lineHeight = dc.getFontHeight(Graphics.FONT_XTINY);
-    var count = ((dc.getHeight() - Theme.SCREEN_MARGIN * 2) / lineHeight).toNumber() - 1;
-    var items = [] as Array<WatchUi.Drawable>;
-    for (var i = 0; i < count; i += 1) {
-        items.add(new LayoutText({:identifier => "line" + i.toString(), :text => "F",
-            :font => Graphics.FONT_XTINY, :ink => Theme.TEXT}));
-    }
-    view.setLayout(items);
-    view.drawLayout(dc);
-    Test.assert(view.label("line0").locY < dc.getHeight() / 8);
-    var radiusX = dc.getWidth() / 2.0 - Theme.SCREEN_MARGIN;
-    var radiusY = dc.getHeight() / 2.0 - Theme.SCREEN_MARGIN;
-    for (var i = 0; i < count; i += 1) {
-        var item = view.label("line" + i.toString());
-        var x = item.measuredWidth / 2.0 / radiusX;
-        var top = (item.locY - dc.getHeight() / 2.0) / radiusY;
-        var bottom = (item.locY + item.measuredHeight - dc.getHeight() / 2.0) / radiusY;
-        Test.assert(x * x + top * top <= 1);
-        Test.assert(x * x + bottom * bottom <= 1);
-    }
-    return true;
-}
-
-(:test)
-function automaticDigitRowCentersAndSelectionFollowsItsTarget(logger as Test.Logger) as Boolean {
+function nativeDigitPositionsStayCenteredWhenEditing(logger as Test.Logger) as Boolean {
     var sizes = [218, 240, 320];
     for (var i = 0; i < sizes.size(); i += 1) {
         var buffer = new Graphics.BufferedBitmap({:width => sizes[i], :height => sizes[i]});
@@ -177,22 +148,20 @@ function automaticDigitRowCentersAndSelectionFollowsItsTarget(logger as Test.Log
         view.onUpdate(dc);
         var first = view.label("digit0");
         var last = view.label("digit3");
-        var rowCenterError = first.locX - first.measuredWidth / 2 +
-            last.locX + last.measuredWidth / 2 - dc.getWidth();
+        Test.assert(first instanceof WatchUi.Text);
+        var rowCenterError = first.locX + last.locX - dc.getWidth();
         Test.assert(rowCenterError >= -2 && rowCenterError <= 2);
         var initialX = first.locX;
-        var initialWidth = first.measuredWidth;
+        var initialY = first.locY;
+        var yError = initialY - dc.getHeight() * 0.4;
+        Test.assert(yError >= -1 && yError <= 1);
+        Test.assert(view.label("digit1").locX < view.label("separator").locX);
+        Test.assert(view.label("separator").locX < view.label("digit2").locX);
         controller.change(1);
         controller.confirm();
         view.onUpdate(dc);
         Test.assertEqual(first.locX, initialX);
-        Test.assertEqual(first.measuredWidth, initialWidth);
-        var selected = view.label("digit1");
-        var box = view.drawable("selection1") as SelectionBox;
-        Test.assertEqual(box.locX, selected.locX - selected.measuredWidth / 2);
-        Test.assertEqual(box.locY, selected.locY);
-        Test.assertEqual(box.width, selected.measuredWidth);
-        Test.assertEqual(box.height, selected.measuredHeight);
+        Test.assertEqual(first.locY, initialY);
     }
     return true;
 }

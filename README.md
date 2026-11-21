@@ -73,7 +73,7 @@ La pantalla principal y el recordatorio son vistas distintas. La principal muest
 
 El dialogo inicial "Recuerda beber agua" y los ajustes del movil conservan la apariencia del sistema Garmin: la aplicacion no controla sus colores.
 
-La paleta por roles sigue centralizada en [Theme.mc](source/Style/Theme.mc). La distribucion, las fuentes y los elementos visuales se definen en [resources/layouts/](resources/layouts/):
+La distribucion, las fuentes y los colores iniciales se definen en [resources/layouts/](resources/layouts/). [Theme.mc](source/Style/Theme.mc) conserva los colores usados por el codigo al cambiar estados:
 
 | Pantalla o elemento | XML |
 | --- | --- |
@@ -81,44 +81,36 @@ La paleta por roles sigue centralizada en [Theme.mc](source/Style/Theme.mc). La 
 | Recordatorio, sin proxima alerta | [reminder.xml](resources/layouts/reminder.xml) |
 | Objetivo diario | [goal.xml](resources/layouts/goal.xml) |
 | Intervalo | [interval.xml](resources/layouts/interval.xml) |
-| Hora inicial | [start-time.xml](resources/layouts/start-time.xml) |
-| Hora final | [end-time.xml](resources/layouts/end-time.xml) |
+| Hora inicial y final | [time.xml](resources/layouts/time.xml) |
 | Encabezado de ajustes | [settings-menu.xml](resources/layouts/settings-menu.xml) |
 | Encabezado de dias | [days-menu.xml](resources/layouts/days-menu.xml) |
 | Fila de ambos menus | [menu-item.xml](resources/layouts/menu-item.xml) |
 
 Los menus conservan el control nativo de Garmin para la lista, el desplazamiento y la seleccion; sus encabezados y filas usan XML. Los layouts se compilan en la app: cambiar un XML o la paleta requiere recompilar, no se cargan ficheros externos en el reloj.
 
-Los XML no contienen coordenadas ni dimensiones de resaltados. [LayoutView.mc](source/View/Common/LayoutView.mc) dispone los textos visibles en el orden del XML, centrados horizontalmente y apilados verticalmente; el bloque completo tambien se centra. Los elementos ocultos no reservan espacio. `LayoutText` y `LayoutBackground` reutilizan la paleta mediante parametros XML:
+Los XML usan componentes nativos de Garmin: `label` para cifras y textos de una linea, `text-area` para errores, rangos, proximo aviso y menus, y los `drawable-list` de [drawables.xml](resources/drawables.xml) para el fondo y el foco del menu. Las posiciones y dimensiones porcentuales se calculan respecto al contexto de dibujo, sin fijar una resolucion en pixeles. En una etiqueta con justificacion `CENTER | VCENTER`, `x` e `y` indican el centro del texto. En un area, `x="center"` la centra horizontalmente; `y` indica su borde superior y `height` reserva su espacio. La justificacion centra el texto dentro del area. El compilador exige colores literales o constantes `Graphics.COLOR_*` en los atributos nativos, no referencias a `Theme`; los valores iniciales del XML deben mantenerse en consonancia con los colores de estado del codigo:
 
 ```xml
-<label id="title" class="LayoutText" font="Graphics.FONT_SMALL"
-       text="@Strings.AppName">
-    <param name="ink">$.Theme.ACCENT</param>
-</label>
+<label id="title" x="50%" y="14%" font="Graphics.FONT_SMALL"
+       text="@Strings.AppName" color="0x55FFFF"
+       justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
 ```
 
-Las etiquetas consecutivas con el mismo parametro `row` forman una fila centrada. Las horas declaran sus elementos en el orden `digit0`, `digit1`, `separator`, `digit2`, `digit3`; el intervalo declara dos cifras. Cada celda se mide con la fuente real y el ancho maximo de sus digitos, para que cambiar el valor no mueva la fila. `SelectionBox` recibe el identificador `target` de la cifra y toma automaticamente su posicion y tamano:
+Las cifras tienen centros porcentuales explicitos, que no se mueven al cambiar el valor o la seleccion. En las horas estan en el 28%, 40%, 60% y 72% del ancho, con los dos puntos en el 50%; el intervalo usa el 43% y el 57%. Su `y` es el centro vertical por la justificacion `VCENTER`. La cifra activa usa el fondo nativo del texto en azul agua, sin un drawable de seleccion propio:
 
 ```xml
-<drawable id="selection0" class="SelectionBox">
-    <param name="target">"digit0"</param>
-    <param name="ink">$.Theme.ACCENT</param>
-</drawable>
-<label id="digit0" class="LayoutText" font="Graphics.FONT_NUMBER_MILD">
-    <param name="row">"digits"</param>
-    <param name="padding">$.Theme.DIGIT_PADDING</param>
-    <param name="ink">$.Theme.TEXT</param>
-</label>
+<label id="digit0" x="28%" y="40%" font="Graphics.FONT_NUMBER_MILD"
+       text="0" color="0xFFFFFF" background="Graphics.COLOR_TRANSPARENT"
+       justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
 ```
 
-Los margenes y espaciados se ajustan en [Theme.mc](source/Style/Theme.mc): `SCREEN_MARGIN`, `MENU_MARGIN`, `STACK_GAP`, `ROW_GAP` y `DIGIT_PADDING`. La altura de las filas nativas de menu tambien se calcula con la fuente del dispositivo, el espaciado y los rellenos `MENU_PADDING` y `MENU_FOCUS_PADDING`. La distribucion usa el ancho y alto del contexto de dibujo y las alturas de las fuentes del dispositivo, no un tamano de pantalla fijo. En pantallas circulares o semicirculares, las vistas completas aprovechan la altura disponible y comprueban el ancho util en los bordes superior e inferior de cada fila. Se reduce el espaciado hasta que las filas quedan dentro del contorno con margen, sin restringir toda la pantalla a un pequeno rectangulo inscrito. Los encabezados y filas nativos de menu usan su propio contexto rectangular.
+Los margenes y espacios de cada pantalla se ajustan en su XML. El contenido largo ocupa la zona central, mas ancha en el contorno circular del Forerunner 645. Los encabezados y filas de menu usan su propio contexto rectangular; las filas reparten la altura entre el titulo y el valor, o usan toda la altura para una entrada sin valor. La altura nativa de la fila sigue calculandose con la fuente del dispositivo, `STACK_GAP`, `MENU_PADDING` y `MENU_FOCUS_PADDING` de [Theme.mc](source/Style/Theme.mc).
 
-Los textos normales se parten en lineas cuando no caben de ancho. Si falta altura, se reduce el espaciado vertical; si ni siquiera caben sin espaciado, o una fila es demasiado ancha, se utilizan fuentes compactas. Las cifras permanecen en una sola linea. Si el contenido aun no cabe, se muestra una excepcion explicita en lugar de dibujarlo recortado. La apariencia se adapta al espacio disponible; los botones, la validacion y el guardado no cambian.
+`text-area`, disponible desde API 3.1, aplica los saltos de linea de forma nativa dentro del ancho y alto declarados. Los errores tienen un area mas alta y sustituyen al contenido normal. Ocultar un elemento deja su zona libre: ya no se recolocan las filas ni se reducen automaticamente las fuentes. Los textos iniciales del XML permiten entender la pantalla y se sustituyen por los valores reales en `onUpdate`. Los botones, la validacion y el guardado no cambian.
 
-El manifiesto sigue admitiendo solo el Forerunner 645. Esta distribucion prepara la interfaz para otros tamanos, pero anadir otro reloj requiere incorporar su perfil y validar sus fuentes, pantalla y controles.
+El manifiesto sigue admitiendo solo el Forerunner 645. Las posiciones se adaptan al tamano del contexto, pero los porcentajes no garantizan que cualquier texto o fuente quepa en cualquier reloj. Anadir otro dispositivo requiere incorporar su perfil y validar sus fuentes, pantalla y controles; si hace falta, se pueden definir variantes de recursos por dispositivo.
 
-Conserva los identificadores de los elementos que actualiza el codigo: `content`, `status`, `schedule`, `errorTitle`, `errorDetail`, `toggleHint` y `menuHint` en las dos vistas principales; `next` solo en la principal; `title`, `digitN`, `selectionN`, `range` y `confirmHint` en los editores por cifras. `LayoutView` comprueba que existen y muestra los errores de recursos como excepciones, sin omitirlos silenciosamente. En API 3.1 controla que elementos dibujar porque el dispositivo no admite la visibilidad nativa de los drawables.
+Conserva los identificadores de los elementos que actualiza el codigo: `content`, `status`, `schedule`, `errorTitle`, `errorDetail`, `toggleHint` y `menuHint` en las dos vistas principales; `next` solo en la principal; `title`, `digitN`, `range` y `confirmHint` en los editores por cifras. [LayoutView.mc](source/View/Common/LayoutView.mc) solo proporciona acceso tipado a los textos y controla que elementos dibujar, porque API 3.1 no admite la visibilidad nativa de los drawables. Ya no contiene un motor de distribucion ni componentes de dibujo propios.
 
 ### Organizacion estilo MVC
 
@@ -152,7 +144,7 @@ Cada pantalla tiene su vista y controlador en archivos propios:
 | Intervalo | [IntervalView.mc](source/View/IntervalView.mc) | [IntervalController.mc](source/Controller/IntervalController.mc) |
 | Hora inicial y final | [TimeView.mc](source/View/TimeView.mc) | [TimeController.mc](source/Controller/TimeController.mc) |
 
-Las dos horas reutilizan la misma logica y vista, pero conservan sus XML separados. Los controladores base de numeros y cifras comparten el comportamiento de edicion; las vistas base comparten solo el dibujo. `BaseWaterController` reutiliza los botones de principal y recordatorio. `BaseSettingsMenu` y `MenuVisuals` reutilizan el refresco y los elementos visuales de los menus.
+Las dos horas reutilizan la misma logica, vista y layout [time.xml](resources/layouts/time.xml). El controlador aporta el titulo y el valor; `DigitView.onUpdate` actualiza esos datos sin duplicar la estructura visual. Los controladores base de numeros y cifras comparten el comportamiento de edicion; las vistas base comparten solo el dibujo. `BaseWaterController` reutiliza los botones de principal y recordatorio. `BaseSettingsMenu` y `MenuVisuals` reutilizan el refresco y los elementos visuales de los menus.
 
 Al abrir un editor, la vista recibe el mismo controlador que Garmin utiliza como delegado:
 
@@ -197,6 +189,8 @@ make build SDK_HOME="/ruta/al/sdk" JAVA_HOME="/ruta/al/jdk/Contents/Home" \
 ```
 
 La compilacion usa comprobacion estricta de tipos (`-l 3`) y avisos del compilador. El resultado instalable es [bin/drink-water.prg](bin/drink-water.prg).
+
+La carpeta [bin/](bin/) contiene archivos generados, no fuentes: ejecutables, metadatos de ajustes, caches e intermedios del compilador. Las compilaciones pueden dejar intermedios de archivos movidos o eliminados; esas caches se pueden borrar y regenerar con `make build`. `make test-build` regenera los binarios de pruebas y `make package` regenera el paquete de distribucion.
 
 ### Depurar con VS Code
 
@@ -259,7 +253,7 @@ Esto genera `bin/drink-water.iq`. La publicacion en Connect IQ Store, incluida u
 - [DrinkWaterApp.mc](source/App/DrinkWaterApp.mc): ciclo de vida y persistencia del ultimo aviso.
 - [BaseWaterView.mc](source/View/BaseWaterView.mc): marco y ciclo de visibilidad compartidos.
 - [LayoutView.mc](source/View/Common/LayoutView.mc): acceso tipado a elementos XML y dibujo compatible con API 3.1.
-- [Theme.mc](source/Style/Theme.mc): paleta, margenes, espaciados y rellenos del menu.
+- [Theme.mc](source/Style/Theme.mc): colores de estado, espaciado y rellenos del menu; el fondo de foco se define en [drawables.xml](resources/drawables.xml).
 - [WaterView.mc](source/View/WaterView.mc): pantalla principal.
 - [WaterController.mc](source/Controller/WaterController.mc) y [ReminderController.mc](source/Controller/ReminderController.mc): controladores de las vistas principales.
 - [ReminderView.mc](source/View/ReminderView.mc): pantalla del recordatorio, sin proxima alerta.
@@ -296,7 +290,8 @@ No hay servidor, analitica ni recogida de datos de consumo. Un aviso no confirma
 
 - Correccion del ajuste circular: se elimina el rectangulo inscrito que hacia fallar la pantalla principal del 645. Se comprueba el contorno por fila y se anade una regresion para contenido alto sin recortes. Aplicacion y pruebas compiladas sin avisos; las pruebas no se han ejecutado. La usuaria confirma que, tras ejecutar de nuevo el script en el simulador del 645, la pantalla principal se muestra correctamente.
 
-- Distribucion automatica: compilacion estricta de aplicacion sin avisos. Los nueve layouts no contienen coordenadas; se han anadido casos de centrado, redistribucion de elementos ocultos y resaltado de cifras con distintos tamanos de buffer. No se han ejecutado las pruebas, a peticion de la usuaria; pendiente de comprobacion visual y validacion en otros perfiles.
+- XML nativo con posiciones relativas: los ocho layouts usan etiquetas, areas de texto y fondos compilados por Garmin; las horas inicial y final comparten `time.xml`. Eliminado el motor de distribucion propio; actualizadas las pruebas de posicion y zonas de error. Compilacion estricta de aplicacion y fuentes de pruebas sin avisos, sin ejecutar tests. Pendiente de comprobar visualmente la compilacion final en el simulador; el control automatizado de su ventana ha quedado bloqueado.
+- Distribucion automatica (anterior al XML nativo): compilacion estricta de aplicacion sin avisos. Los nueve layouts no contienen coordenadas; se han anadido casos de centrado, redistribucion de elementos ocultos y resaltado de cifras con distintos tamanos de buffer. No se han ejecutado las pruebas, a peticion de la usuaria; pendiente de comprobacion visual y validacion en otros perfiles.
 
 - Organizacion MVC: compilacion estricta sin avisos y **25 pruebas aprobadas**; las pruebas de edicion ejercitan ahora los controladores y las de renderizado conectan cada vista XML con su controlador. Se mantienen el guardado, la cancelacion, la seleccion de cifras y la programacion de avisos.
 - Layouts XML: compilacion estricta sin avisos y **25 pruebas aprobadas**. Se renderizan en buffers completos las pantallas principal, recordatorio, objetivo, intervalo y ambas horas; tambien los encabezados y filas de menus con cambios de tamano. Se comprueba que el recordatorio no contiene `next` y que los elementos ocultos no se dibujan. Pendiente de revision visual en el reloj o simulador.
