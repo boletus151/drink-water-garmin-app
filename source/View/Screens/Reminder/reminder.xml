@@ -1,12 +1,9 @@
 <layout id="ReminderLayout">
     <drawable id="background"/>
-    <label id="status" x="50%" y="27%" font="Graphics.FONT_XTINY"
-           text="@Strings.Enabled" color="0xFFFFFF"
-           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
-    <label id="content" x="50%" y="43%" font="Graphics.FONT_XTINY"
+    <label id="content" class="StackText" font="Graphics.FONT_XTINY"
            text="@Strings.Reminder" color="0x55FFFF"
            justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
-    <label id="remaining" x="50%" y="58%" font="Graphics.FONT_XTINY"
+    <label id="remaining" class="StackText" font="Graphics.FONT_XTINY"
            text="@Strings.RemainingLabel" color="0xFFFFFF"
            justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
 </layout>

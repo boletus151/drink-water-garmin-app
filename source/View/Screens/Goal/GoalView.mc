@@ -9,7 +9,7 @@ class GoalView extends LayoutView {
     }
 
     function onLayout(dc as Graphics.Dc) as Void {
-        setLayout(Rez.Layouts.GoalLayout(dc));
+        setEditorLayout(Rez.Layouts.GoalLayout(dc), dc, [["value"]]);
     }
 
     function onUpdate(dc as Graphics.Dc) as Void {

@@ -21,10 +21,6 @@ class WaterView extends RootView {
         }
         var now = Time.now();
         var config = Config.readAt(now);
-        var status = !config.enabled ? Rez.Strings.Disabled :
-            config.goalReached(now) ? Rez.Strings.GoalReached : Rez.Strings.Enabled;
-        label("status").setText(text(status));
-        label("status").setColor(config.enabled ? Theme.TEXT : Theme.MUTED);
         var valid = WaterFrame.update(self, config, waterApp().scheduleError);
         show("goal", valid);
         show("consumed", valid);

@@ -58,12 +58,60 @@ class LayoutDrawCounter extends WatchUi.Drawable {
 }
 
 (:test)
+function verticalLayoutCentersVisibleRowsWithFixedSpacing(logger as Test.Logger) as Boolean {
+    var dc = LayoutDrawCounter.buffer(240).getDc();
+    var view = new LayoutView();
+    view.setLayout(Rez.Layouts.ReminderLayout(dc));
+    view.setVerticalLayout([], [["content"], ["remaining"]], [], 0);
+    view.drawLayout(dc);
+    var first = view.drawable("content") as StackText;
+    var second = view.drawable("remaining") as StackText;
+    var firstTop = first.locY - (first.measuredHeight / 2).toNumber();
+    var secondTop = second.locY - (second.measuredHeight / 2).toNumber();
+    Test.assertEqual(secondTop - firstTop - first.measuredHeight, Theme.STACK_GAP);
+    var total = first.measuredHeight + Theme.STACK_GAP + second.measuredHeight;
+    Test.assertEqual(firstTop, ((240 - total) / 2).toNumber());
+    view.show("content", false);
+    view.drawLayout(dc);
+    Test.assertEqual(second.locY, 120);
+    view.show("content", true);
+    view.drawLayout(dc);
+    Test.assertEqual(first.locY - (first.measuredHeight / 2).toNumber(), firstTop);
+    return true;
+}
+
+(:test)
+function verticalLayoutKeepsDigitsTogetherAndMeasuresWrappedText(logger as Test.Logger) as Boolean {
+    var dc = LayoutDrawCounter.buffer(240).getDc();
+    var view = new LayoutView();
+    view.setEditorLayout(Rez.Layouts.TimeLayout(dc), dc,
+        [["digit0", "digit1", "separator", "digit2", "digit3"], ["range"]]);
+    view.drawLayout(dc);
+    var digits = ["digit0", "digit1", "separator", "digit2", "digit3"];
+    for (var i = 1; i < digits.size(); i += 1) {
+        Test.assertEqual(view.drawable(digits[i]).locY, view.drawable(digits[0]).locY);
+        Test.assert(view.drawable(digits[i]).locX > view.drawable(digits[i - 1]).locX);
+    }
+    var range = view.drawable("range") as StackText;
+    range.setText("09:00 - 21:00");
+    range.measure(dc, 200);
+    var singleLineHeight = range.measuredHeight;
+    range.measure(dc, 60);
+    Test.assert(range.measuredHeight > singleLineHeight);
+    Test.assert(range.measuredWidth <= 60);
+    range.measure(dc, 200);
+    Test.assertEqual(range.measuredHeight, singleLineHeight);
+    return true;
+}
+
+(:test)
 function xmlLayoutsRenderScreensAndKeepNextOutOfTheReminder(logger as Test.Logger) as Boolean {
     var buffer = LayoutDrawCounter.buffer(240);
     var dc = buffer.getDc();
     var main = new WaterView();
     main.onLayout(dc);
     main.onUpdate(dc);
+    Test.assert(main.findDrawableById("status") == null);
     Test.assert(main.findDrawableById("next") != null);
     Test.assert(main.findDrawableById("goal") != null);
     Test.assert(main.findDrawableById("consumed") != null);
@@ -76,6 +124,10 @@ function xmlLayoutsRenderScreensAndKeepNextOutOfTheReminder(logger as Test.Logge
     var completed = new GoalReachedView();
     completed.onLayout(dc);
     completed.onUpdate(dc);
+    Test.assert(completed._hidden.indexOf(completed.drawable("toggleHint")) >= 0);
+    Test.assert(completed._hidden.indexOf(completed.drawable("menuHint")) >= 0);
+    Test.assert(main._hidden.indexOf(main.drawable("toggleHint")) < 0);
+    Test.assert(main._hidden.indexOf(main.drawable("menuHint")) < 0);
     var settings = new SettingsController(new SettingsMenu());
     var keys = ["goalMl", "intervalMinutes", "startTime", "endTime", "servingMl"];
     var values = [2000, 15, 570, 1260, 150];
@@ -229,18 +281,29 @@ function reminderUsesItsOwnViewAndSavingReturnsToTheMainView(logger as Test.Logg
 }
 
 (:test)
-function debugReminderIsOneMinuteAfterOpeningAndRespectsMinimumSpacing(logger as Test.Logger) as Boolean {
+function debugReminderTargetsNextMinuteAndRespectsMinimumSpacing(logger as Test.Logger) as Boolean {
     var config = new WaterConfig();
     var opened = new Time.Moment(1000000);
-    var target = Schedule.debugEventTime(config, opened, null, true);
+    var target = Schedule.debugEventTime(config, opened.add(new Time.Duration(1)), null, true);
     Test.assert(target != null);
     if (target != null) {
-        Test.assertEqual(target.value(), opened.value() + 60);
+        Test.assertEqual(target.value(), 1000020);
     }
-    target = Schedule.debugEventTime(config, opened, new Time.Moment(opened.value() - 30), true);
+    target = Schedule.debugEventTime(config, opened.add(new Time.Duration(1)),
+        new Time.Moment(opened.value() - 30), true);
     Test.assert(target != null);
     if (target != null) {
         Test.assertEqual(target.value(), opened.value() + 270);
+    }
+    target = Schedule.debugEventTime(config, new Time.Moment(1000020), null, true);
+    Test.assert(target != null);
+    if (target != null) {
+        Test.assertEqual(target.value(), 1000020);
+    }
+    target = Schedule.debugEventTime(config, new Time.Moment(1000021), null, true);
+    Test.assert(target != null);
+    if (target != null) {
+        Test.assertEqual(target.value(), 1000080);
     }
     Test.assert(Schedule.debugEventTime(config, opened, null, false) == null);
     config.enabled = false;
@@ -273,26 +336,48 @@ function debugReminderIgnoresScheduleButRejectsEarlyLateAndDisabledEvents(logger
 }
 
 (:test)
-function pendingDebugKeepsItsDeadlineAndExpiresWithoutRepeating(logger as Test.Logger) as Boolean {
-    var previous = Storage.getValue("debugReminderTime");
+function debugRemindersRepeatAtTheEarliestLegalTime(logger as Test.Logger) as Boolean {
     var config = new WaterConfig();
-    Storage.setValue("debugReminderTime", 1000060);
-    var first = Schedule.pendingDebug(config, new Time.Moment(1000001));
-    var later = Schedule.pendingDebug(config, new Time.Moment(1000030));
-    var expired = Schedule.pendingDebug(config, new Time.Moment(1000061));
-    config.enabled = false;
-    var disabled = Schedule.pendingDebug(config, new Time.Moment(1000001));
-    Storage.setValue("debugReminderTime", previous);
-    if (Config.DEBUG) {
-        Test.assert(first != null && later != null);
-        if (first != null && later != null) {
-            Test.assertEqual(first.value(), 1000060);
-            Test.assertEqual(later.value(), first.value());
+    var first = new Time.Moment(1000020);
+    var next = Schedule.debugEventTime(config, first.add(new Time.Duration(1)), first, true);
+    Test.assert(next != null);
+    if (next != null) {
+        Test.assertEqual(next.value(), first.value() + 300);
+        Test.assert(Schedule.debugDueKey(config, next, next.value(), true) != null);
+        var delayed = next.add(new Time.Duration(37));
+        var repeated = Schedule.debugEventTime(config, delayed.add(new Time.Duration(1)), delayed, true);
+        Test.assert(repeated != null);
+        if (repeated != null) {
+            Test.assertEqual(repeated.value(), delayed.value() + 300);
         }
-    } else {
-        Test.assert(first == null && later == null);
     }
-    Test.assert(expired == null && disabled == null);
+    config.intakeDay = Intake.dayKey(Gregorian.info(first, Time.FORMAT_SHORT));
+    config.consumedMl = 2000;
+    Test.assert(Schedule.debugEventTime(config, first, first, true) == null);
+    return true;
+}
+
+(:test)
+function debugIntakeIsSeparateFromRealIntakeAndStillValidated(logger as Test.Logger) as Boolean {
+    var previousReal = Storage.getValue("dailyIntake");
+    var previousDebug = Storage.getValue("debugDailyIntake");
+    var now = Time.now();
+    var day = Intake.dayKey(Gregorian.info(now, Time.FORMAT_SHORT));
+    try {
+        Storage.setValue("dailyIntake", {"day" => day, "totalMl" => 500});
+        Storage.setValue("debugDailyIntake", {"day" => day, "totalMl" => 1800});
+        Test.assertEqual(Intake.readForMode(now, false).totalMl, 500);
+        Test.assertEqual(Intake.readForMode(now, true).totalMl, 1800);
+        Storage.setValue("debugDailyIntake", {"day" => day, "totalMl" => 2000});
+        Test.assertEqual(Intake.readForMode(now, true).totalMl, 2000);
+        Test.assertEqual(Intake.readForMode(now, false).totalMl, 500);
+        Storage.setValue("debugDailyIntake", {"day" => day, "totalMl" => 1801});
+        Test.assert(Intake.readForMode(now, true).error != null);
+        Test.assert(Intake.readForMode(now, false).error == null);
+    } finally {
+        Storage.setValue("dailyIntake", previousReal);
+        Storage.setValue("debugDailyIntake", previousDebug);
+    }
     return true;
 }
 
@@ -1113,6 +1198,51 @@ function reachingOrExceedingGoalSkipsTodayButKeepsFutureReminders(logger as Test
     Test.assert(Schedule.next(config, now) == null);
     if (nextWeek != null) {
         Test.assert(Schedule.dueKey(config, nextWeek) == null);
+    }
+    return true;
+}
+
+(:test)
+function intakeMenuFlashesOnlySavedServingsAndClearsOnHide(logger as Test.Logger) as Boolean {
+    var state = new ConfigProperties();
+    var app = waterApp();
+    var previousReminder = app.reminder;
+    var previousError = app.scheduleError;
+    var previousRoot = app.visibleRoot;
+    var menu = new SettingsMenu();
+    var controller = new SettingsController(menu);
+    try {
+        state.reset();
+        app.visibleRoot = null;
+        Properties.setValue("servingMl", 125);
+        controller.onSelect(menu._record);
+        Test.assert(!menu._record.intakeFeedback);
+        Test.assertEqual(Intake.read(Time.now()).totalMl, 0);
+
+        Properties.setValue("servingMl", 150);
+        controller.onSelect(menu._record);
+        Test.assert(menu._record.intakeFeedback);
+        Test.assert(menu._header.intakeFeedback);
+        Test.assertEqual(Config.read().consumedMl, 150);
+        controller.onSelect(menu._record);
+        Test.assert(!menu._record.intakeFeedback);
+        Test.assertEqual(Config.read().consumedMl, 300);
+        menu.onHide();
+        menu.showIntakeFeedback();
+        menu.finishIntakeFeedback();
+        Test.assert(!menu._record.intakeFeedback);
+        Test.assert(!menu._header.intakeFeedback);
+        menu.flashIntake();
+        menu.onHide();
+        Test.assert(!menu._record.intakeFeedback);
+        Test.assert(!menu._header.intakeFeedback);
+    } finally {
+        menu.onHide();
+        state.restore();
+        app.reschedule();
+        app.reminder = previousReminder;
+        app.scheduleError = previousError;
+        app.visibleRoot = previousRoot;
     }
     return true;
 }

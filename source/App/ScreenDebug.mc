@@ -1,11 +1,10 @@
-import Toybox.Application.Properties;
 import Toybox.Lang;
 import Toybox.WatchUi;
 
 module ScreenDebug {
-    const ENABLED = ScreenDebugConfig.ENABLED;
+    const ENABLED = DebugConfig.SCREEN_ENABLED;
     // water, reminder, goalReached, goal, serving, interval, startTime, endTime, settings, days
-    const SCREEN = ScreenDebugConfig.SCREEN;
+    const SCREEN = DebugConfig.SCREEN;
 
     (:debug)
     function initialView() as [WatchUi.Views, WatchUi.InputDelegates]? {
@@ -53,7 +52,7 @@ module ScreenDebug {
         } else {
             throw new Lang.UnexpectedTypeException("Unknown debug screen: " + SCREEN, null, null);
         }
-        var value = Properties.getValue(key);
+        var value = Config.settingValue(key);
         if (!(value instanceof Number)) {
             throw new Lang.UnexpectedTypeException("Debug setting must be Number: " + key, null, null);
         }

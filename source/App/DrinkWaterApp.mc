@@ -22,13 +22,18 @@ class DrinkWaterApp extends Application.AppBase {
     (:typecheck(disableBackgroundCheck))
     function getInitialView() as [WatchUi.Views] or [WatchUi.Views, WatchUi.InputDelegates] {
         var now = Time.now();
-        var target = Schedule.debugEventTime(Config.read(), now,
-            Background.getLastTemporalEventTime(), Config.DEBUG);
-        Storage.setValue("debugReminderTime", target != null ? target.value() : null);
-        if (target != null) {
-            System.println("DrinkWater DEBUG: aviso en " + (target.value() - now.value()).toString() + " s");
+        if (DebugConfig.DEBUG) {
+            Storage.setValue(Intake.storageKey(true), {
+                "day" => Intake.dayKey(Toybox.Time.Gregorian.info(now, Time.FORMAT_SHORT)),
+                "totalMl" => Intake.DEBUG_INITIAL_ML
+            });
+            System.println("DrinkWater DEBUG: objetivo 2000 ml, consumo inicial 1800 ml");
         }
         reschedule();
+        var target = DebugConfig.DEBUG && !scheduleError ? Background.getTemporalEventRegisteredTime() : null;
+        if (target instanceof Time.Moment) {
+            System.println("DrinkWater DEBUG: aviso en " + (target.value() - now.value()).toString() + " s");
+        }
         var preview = ScreenDebug.initialView();
         screenPreview = preview != null;
         if (preview != null) {
@@ -117,6 +122,10 @@ class DrinkWaterApp extends Application.AppBase {
 
     (:typecheck(disableBackgroundCheck))
     function save(key as String, value as Properties.ValueType) as Void {
+        if (DebugConfig.DEBUG && key.equals("goalMl")) {
+            System.println("DrinkWater DEBUG: el objetivo es fijo en 2000 ml");
+            return;
+        }
         Properties.setValue(key, value);
         reminder = false;
         reschedule();
@@ -133,7 +142,7 @@ class DrinkWaterApp extends Application.AppBase {
             WatchUi.requestUpdate();
             return false;
         }
-        Storage.setValue("dailyIntake", {
+        Storage.setValue(Intake.storageKey(DebugConfig.DEBUG), {
             "day" => Intake.dayKey(Toybox.Time.Gregorian.info(now, Time.FORMAT_SHORT)),
             "totalMl" => config.consumedMl + config.servingMl
         });

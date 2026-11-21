@@ -17,9 +17,15 @@ class WaterService extends System.ServiceDelegate {
         if (!(last instanceof Number)) {
             last = Storage.getValue("lastReminder");
         }
-        var target = Storage.getValue("debugReminderTime");
-        var key = Schedule.debugDueKey(config, now, target instanceof Number ? target : null, Config.DEBUG);
-        if (key == null) {
+        var key = null as Number?;
+        if (DebugConfig.DEBUG) {
+            var target = Background.getLastTemporalEventTime();
+            if (!(target instanceof Time.Moment)) {
+                System.println("DrinkWater DEBUG: falta la fecha del evento temporal ejecutado");
+            } else {
+                key = Schedule.debugDueKey(config, now, target.value(), true);
+            }
+        } else {
             key = Schedule.dueKey(config, now);
         }
         if (key != null && (!(last instanceof Number) || key > last)) {

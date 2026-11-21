@@ -1,18 +1,15 @@
 <layout id="WaterLayout">
     <drawable id="background"/>
-    <label id="status" x="50%" y="25%" font="Graphics.FONT_XTINY"
-           text="@Strings.Enabled" color="0xFFFFFF"
-           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
-    <label id="goal" x="50%" y="35%" font="Graphics.FONT_XTINY"
+    <label id="goal" class="StackText" font="Graphics.FONT_XTINY"
            text="@Strings.GoalLabel" color="0xFFFFFF"
            justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
-    <label id="consumed" x="50%" y="45%" font="Graphics.FONT_XTINY"
+    <label id="consumed" class="StackText" font="Graphics.FONT_XTINY"
            text="@Strings.ConsumedLabel" color="0xFFFFFF"
            justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
-    <label id="schedule" x="50%" y="55%" font="Graphics.FONT_XTINY"
+    <label id="schedule" class="StackText" font="Graphics.FONT_XTINY"
            text="09:00 - 21:00 / 30 min" color="0xAAAAAA"
            justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
-    <text-area id="next" x="center" y="59%" width="90%" height="10%"
+    <label id="next" class="StackText"
                font="Graphics.FONT_XTINY" text="@Strings.NoNext" color="0xFFFFFF"
-               justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
+           justification="Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER"/>
 </layout>

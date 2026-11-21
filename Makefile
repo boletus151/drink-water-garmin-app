@@ -18,14 +18,14 @@ run:
 
 debug-build:
 	@if [ ! -f "$(DEBUG_JUNGLE)" ]; then \
-		echo "Falta la configuracion temporal. Ejecuta ./run-debug.sh." >&2; exit 1; \
+		echo "Falta la configuracion temporal. Ejecuta ./run-screen-debug.sh pantalla o ./run-simulator.sh debug." >&2; exit 1; \
 	fi
 	mkdir -p bin
 	"$(SDK_HOME)/bin/monkeyc" -f "monkey.jungle;$(DEBUG_JUNGLE)" -d fr645 -o bin/drink-water-debug.prg -y "$(DEVELOPER_KEY)" -l 3 -w
 
 debug-run:
 	@if [ ! -f bin/drink-water-debug.prg ]; then \
-		echo "Falta bin/drink-water-debug.prg. Ejecuta ./run-debug.sh primero." >&2; exit 1; \
+		echo "Falta bin/drink-water-debug.prg. Ejecuta ./run-screen-debug.sh pantalla o ./run-simulator.sh debug primero." >&2; exit 1; \
 	fi
 	"$(SDK_HOME)/bin/monkeydo" bin/drink-water-debug.prg fr645
 

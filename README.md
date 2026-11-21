@@ -9,7 +9,7 @@
 - Uses a configurable serving of **100, 150, 200, or 250 ml**. Reaching or exceeding the goal stops reminders for the rest of that local day.
 - Supports reminder intervals of **15-60 minutes**, a same-day time window, and independently selected weekdays.
 - Allows persistent configuration on the watch or through Connect IQ mobile settings.
-- Shows separate **Objetivo** and **Llevas** labels, schedule, reminder state, and next reminder on the main screen. The reminder screen displays the hydration prompt and **Quedan** milliliters, never below zero. A dedicated **Objetivo cumplido** screen appears when the daily goal is reached or exceeded.
+- Shows separate **Objetivo** and **Llevas** labels, schedule, and next reminder on the main screen. The **START: activar/desactivar** control indicates reminder state, without a redundant status row, leaving room for four vertically stacked content rows. The reminder screen displays the hydration prompt and **Quedan** milliliters, never below zero. A dedicated **Objetivo cumplido** screen appears when the daily goal is reached or exceeded.
 
 Defaults: reminders enabled, **2,000 ml** daily goal, **100 ml** per serving, every **60 minutes**, **09:00-21:00**, every day.
 
@@ -31,8 +31,8 @@ There is no server, analytics, intake history, or medical recommendation engine.
 
 - Open the app once after installation. **START** toggles reminders; **UP** or **MENU** opens settings.
 - Set **Cantidad toma (ml)** to **100, 150, 200, or 250** using **UP/DOWN**, then save with **START**. Changes are always in **50 ml** steps.
-- Whenever you drink that amount, open the menu and select its first option, **Registrar toma**. Its subtitle shows the amount to add. The app saves one serving and shows the updated total (for example, **Objetivo: 2000 ml**, **Llevas: 150 ml**). This is also available from the reminder and goal-completed screens.
-- At or above the goal, the app shows a dedicated **Objetivo cumplido** screen with the goal, consumed amount, and **Sin mas avisos hoy**, even if reminders are manually disabled. **START** remains the manual enable/disable control, and **UP/MENU** still opens settings. The main screen returns when a new local day begins or the goal is raised above the daily total; the screen selection is re-evaluated on opening, returning from settings, and foreground redraws.
+- Whenever you drink that amount, open the menu and select its first option, **Registrar toma**. Its subtitle shows the amount to add. Each successful entry briefly flashes the menu background turquoise for 350 ms, then restores its normal colors; the menu stays open for further entries. Return with **BACK** to see the updated total (for example, **Objetivo: 2000 ml**, **Llevas: 150 ml**). This is also available from the reminder and goal-completed screens.
+- At or above the goal, the app shows a dedicated **Objetivo cumplido** screen with the goal, consumed amount, and **Sin mas avisos hoy**, even if reminders are manually disabled. This screen hides the **START** and **UP** control hints; **START** still toggles reminders and **UP/MENU** still opens settings. The main screen returns when a new local day begins or the goal is raised above the daily total; the screen selection is re-evaluated on opening, returning from settings, and foreground redraws.
 - **UP/DOWN** navigates or changes values; **START** selects, advances through digits, or saves. **BACK** returns to the previous digit or cancels from the first digit.
 - The goal changes in **50 ml** steps. Interval and time editors use highlighted digits; times are displayed as **HH:MM**.
 - In the days menu, **START** toggles the selected weekday. Exit to the watch face with **BACK**; reminders continue in the background.
@@ -58,8 +58,8 @@ Paths below are relative to [source/](source/).
 | --- | --- |
 | [App/DrinkWaterApp.mc](source/App/DrinkWaterApp.mc) | Entry point, lifecycle, root-view switching, persistence, and scheduling-error handling. |
 | [App/ScreenDebug.mc](source/App/ScreenDebug.mc) | Optional startup-screen selection for non-release builds; reuses real views and editor factories. |
-| [App/ScreenDebugConfig.mc](source/App/ScreenDebugConfig.mc) | Default screen-preview configuration; the debug launcher substitutes a temporary configuration at compile time. |
-| [Model/Config.mc](source/Model/Config.mc) | `WaterConfig`, property loading, validation, shared limits, and debug flag. |
+| [App/DebugConfig.mc](source/App/DebugConfig.mc) | Default preview/reminder debug flags, also available to the background service; scripts substitute a temporary configuration at compile time. |
+| [Model/Config.mc](source/Model/Config.mc) | `WaterConfig`, property loading, validation, and shared limits. |
 | [Model/Intake.mc](source/Model/Intake.mc) | Persistent daily-total reading, local-date keys, rollover, and stored-data validation; storage writes remain in the foreground application. |
 | [Service/Schedule.mc](source/Service/Schedule.mc) | Calendar calculations, due-slot keys, minimum spacing, checkpoints, and event registration. |
 | [Service/WaterService.mc](source/Service/WaterService.mc) | Background callback, duplicate suppression, wake request, and result delivery. |
@@ -90,11 +90,14 @@ Paths below are relative to [source/](source/).
 | [manifest.xml](manifest.xml) | App identity, entry point, device, minimum API, language, and background permission. |
 | [monkey.jungle](monkey.jungle) | Compiler source, test, resource, and manifest paths. |
 | [Makefile](Makefile), [run-simulator.sh](run-simulator.sh) | Strict builds, simulator execution, tests, and export; the script builds before running. |
-| [run-debug.sh](run-debug.sh), [debug-screen.conf](debug-screen.conf) | Isolated screen-preview build and launch; the configuration file contains the default screen name. |
+| [run-screen-debug.sh](run-screen-debug.sh) | Isolated screen-preview build and launch with a required screen name and accelerated reminders. |
+| [z_debug-launch-helper.sh](z_debug-launch-helper.sh) | Shared internal helper for temporary accelerated-debug configuration, compilation, loading, and cleanup. |
 | [.vscode/launch.json](.vscode/launch.json) | Monkey C debugger configuration for `fr645`. |
 | [tests/ScheduleTests.mc](tests/ScheduleTests.mc) | Regression tests for configuration/types, calendar boundaries, reminder tolerance/spacing/checkpoints, daily intake and goal suspension/resumption, editor persistence, menu toggles, and screen rendering. Tests that modify settings/storage restore them after failures. |
 
-XML layouts use native labels/text areas and relative positions. Layout and theme changes require recompilation; keep XML colors consistent with the runtime palette.
+XML layouts use `StackText` labels without coordinates. `LayoutView.setVerticalLayout` groups their IDs into header, content, and footer rows. It measures the current text/font, wraps long text, skips hidden elements, and centers the content block between the header and controls with the fixed 6 px `Theme.STACK_GAP` spacing. IDs in the same row remain horizontal (for example, time digits); root-screen content follows XML order through `WaterFrame`. Root screens reserve a smaller outer margin than editors to fit four content rows on the 240 px Forerunner 645 display. Menu headers and items use the same stack within Garmin's drawing area. Content that exceeds the available height raises an explicit layout error rather than overlapping controls. Layout and theme changes require recompilation; keep XML colors consistent with the runtime palette.
+
+Editor screens call `LayoutView.setEditorLayout` with their compiled XML layout, drawing context, and content rows only. The shared method configures the `title`, `editHint`, and `confirmHint` (digit editors) or `saveHint` (numeric editors), and calculates the common outer margin. Individual editors do not repeat positioning formulas or header/footer configuration.
 
 ## Prerequisites
 
@@ -215,26 +218,38 @@ Run these commands from the project directory in the Terminal session configured
 
 3. Use the simulated watch buttons as described in **Watch controls and settings**: **START** toggles reminders or confirms a selection, **UP/MENU** opens settings, **UP/DOWN** changes values, and **BACK** returns or cancels. Starting with a zero daily total, set the goal to **250 ml** and the serving to **150 ml**, then select **Registrar toma**: the main screen should show **Objetivo: 250 ml** and **Llevas: 150 ml**. Register another serving: the dedicated **Objetivo cumplido** screen should show **Llevas: 300 ml**. Raise the goal above the total to return to the main screen. Restore your intended settings afterward. Check the interval, time window, and weekdays, then return to the watch face to exercise background reminders.
 
+### Simulator script reference
+
+Both scripts resolve paths relative to their own directory, so they can be invoked from another working directory. They require the SDK, Java, developer key, and an already-running simulator described above. Neither starts the simulator or attaches a debugger.
+
+| Command | Behavior | Executable |
+| --- | --- | --- |
+| `./run-simulator.sh` | Build and run with the project's default configuration. | `bin/drink-water.prg` |
+| `./run-simulator.sh debug` | Temporarily enable accelerated reminders, with normal startup-screen selection. | `bin/drink-water-debug.prg` |
+| `./run-screen-debug.sh screen` | Temporarily preview the required screen with accelerated reminders enabled. | `bin/drink-water-debug.prg` |
+
+The simulator launcher accepts only the optional `debug` argument; the screen launcher accepts exactly one screen name and needs no `debug` flag. Configure tool paths through environment variables, for example `SDK_HOME="/path/to/sdk" ./run-screen-debug.sh goal`, or export `SDK_HOME`, `JAVA_HOME`, and `DEVELOPER_KEY` beforehand. Additional arguments, including Make variable assignments, are rejected. The scripts rebuild on every launch, stop if compilation fails, and do not run tests. Temporary configurations are cleaned up on exit; compiled executables and changes made through the app's controls persist.
+
 ### Previewing a specific screen
 
 With the simulator already open, run:
 
 ```sh
-./run-debug.sh            # Reads the screen name from debug-screen.conf (default: goal)
-./run-debug.sh reminder   # Overrides the screen for this launch only
-./run-debug.sh startTime
+./run-screen-debug.sh goal
+./run-screen-debug.sh reminder
+./run-screen-debug.sh startTime
 ```
 
-[debug-screen.conf](debug-screen.conf) contains only a screen name, with no quotes or `SCREEN=` prefix. Edit it to choose the default for future debug launches. Make tool-path overrides are supported, for example `./run-debug.sh goal SDK_HOME="/path/to/sdk"`.
+The screen name is mandatory. The launcher no longer reads [debug-screen.conf](debug-screen.conf); pass the desired screen explicitly. The former `run-debug.sh` name and `run-simulator.sh --screen` interface have been replaced by [run-screen-debug.sh](run-screen-debug.sh).
 
-The launcher generates a temporary enabled configuration, compiles `bin/drink-water-debug.prg`, and loads it without a debugger. It never edits the normal configuration or overwrites `bin/drink-water.prg`. Temporary configuration files are removed on exit, including build/load failures or interruption. The compiled preview remains available for `make debug-run`. Use `./run-simulator.sh` to rebuild and launch the normal app afterward.
+The launcher generates a temporary configuration with screen preview and accelerated reminders enabled, compiles `bin/drink-water-debug.prg`, and loads it without a debugger. It never edits the normal configuration or overwrites `bin/drink-water.prg`. Temporary configuration files are removed on exit, including build/load failures or interruption. The compiled preview remains available for `make debug-run`. Use `./run-simulator.sh` to rebuild and launch the normal app afterward.
 
 The terminal should print `DrinkWater DEBUG: pantalla goal` (or the selected name) when the preview starts. The command normally stays active until the app closes. If compilation succeeds but the simulator remains on the Garmin logo without that startup message, interrupt the script, close and reopen the simulator, and run the script again; the SDK loader can remain waiting without reporting an error when the simulator is stuck.
 
-For persistent preview selection in regular non-release builds or VS Code debugging, edit [source/App/ScreenDebugConfig.mc](source/App/ScreenDebugConfig.mc):
+For persistent preview selection in regular non-release builds or VS Code debugging, edit [source/App/DebugConfig.mc](source/App/DebugConfig.mc):
 
 ```monkeyc
-const ENABLED = true;
+const SCREEN_ENABLED = true;
 const SCREEN = "goal";
 ```
 
@@ -242,13 +257,28 @@ Then run `./run-simulator.sh` with the simulator already open. No debugger is re
 
 Available screens: `water`, `reminder`, `goalReached`, `goal`, `serving`, `interval`, `startTime`, `endTime`, `settings`, and `days`. The two time options share a layout but use their respective titles and values. Unknown screen names fail explicitly instead of opening another screen.
 
-Preview mode opens the real view with its normal controller and current saved settings/intake, not mock data. Controls still save changes and scheduling still runs normally. Automatic root-screen switching is suppressed for the entire preview session, so a reminder or daily-goal update does not replace the selected screen. Saving or cancelling an editor opened as the initial screen closes the app; screens opened from a menu return to that menu as usual.
+Preview mode opens the real view with its normal controller. Persistent previews without accelerated debug use current saved settings/intake; the screen launcher uses the fixed goal and separate initial intake described below. Controls still save changes, except for the fixed debug goal. Automatic root-screen switching is suppressed for the entire preview session, so a reminder or daily-goal update does not replace the selected screen. Saving or cancelling an editor opened as the initial screen closes the app; screens opened from a menu return to that menu as usual.
 
-Set `ENABLED = false` in [source/App/ScreenDebugConfig.mc](source/App/ScreenDebugConfig.mc) to restore normal startup and automatic screen switching for regular builds. The debug launcher ignores these persistent defaults for its own isolated build. The selector is independent of `Config.DEBUG` (accelerated reminders). Garmin's `(:debug)`/`(:release)` annotations disable screen previews in release builds, including `make package`, even when `ENABLED` is true. Non-release simulator builds and VS Code debug launches both honor the configuration.
+Set `SCREEN_ENABLED = false` in [source/App/DebugConfig.mc](source/App/DebugConfig.mc) to restore normal startup and automatic screen switching for regular builds. The debug launchers ignore these persistent defaults for their own isolated builds. [run-screen-debug.sh](run-screen-debug.sh) always enables accelerated reminders; persistent previews configured in the source remain independent of `DebugConfig.DEBUG`. Garmin's `(:debug)`/`(:release)` annotations disable screen previews in release builds, including `make package`, even when `SCREEN_ENABLED` is true. Regular non-release simulator builds and VS Code debug launches both honor the persistent configuration.
 
 For interactive debugging in VS Code, install/configure Garmin's Monkey C extension with your SDK and developer key, select **Debug Bebe agua (Forerunner 645)**, and press **F5**. The configuration in [.vscode/launch.json](.vscode/launch.json) targets `fr645` and pauses at launch (`stopAtLaunch`); resume execution to interact with the app.
 
-`Config.DEBUG` in [source/Model/Config.mc](source/Model/Config.mc) is currently **false**. Enabling it and rebuilding schedules a one-off test reminder approximately 60 seconds after opening, outside normal day/time restrictions but still respecting Garmin's minimum spacing and the daily goal. This is useful for checking the background wake dialog without waiting for a normal reminder slot. If today's goal is already reached, raise it above the recorded total to exercise the debug reminder. Keep debug disabled for normal use.
+### Accelerated reminder debug mode
+
+With the simulator already open, run:
+
+```sh
+./run-simulator.sh debug  # Normal startup screen, with an accelerated reminder
+./run-simulator.sh        # Normal build, without accelerated reminders
+```
+
+The `debug` argument temporarily enables `DebugConfig.DEBUG` from [source/App/DebugConfig.mc](source/App/DebugConfig.mc), without editing source files. [run-simulator.sh](run-simulator.sh) and [run-screen-debug.sh](run-screen-debug.sh) share the temporary-configuration build path through [z_debug-launch-helper.sh](z_debug-launch-helper.sh) and produce `bin/drink-water-debug.prg`; `make debug-run` reloads whichever debug mode was built last. Both debug launchers enable accelerated reminders, but only the screen launcher forces a startup screen. The normal executable remains separate. Default builds keep both debug features disabled, and release builds always disable accelerated reminders.
+
+This mode fixes the goal at **2000 ml** without changing the saved normal-mode goal. Each app opening initializes a separate `debugDailyIntake` total to **1800 ml** for the current day; registering servings increases that debug total and never modifies real `dailyIntake`. The goal shown in settings is fixed and cannot be edited in debug. Normal mode retains its saved goal, interval, and intake.
+
+The first reminder targets the next minute boundary (1-60 seconds after opening), outside normal day/time/interval restrictions but still respecting enabled/valid settings and the daily goal. Every background callback re-arms the next debug reminder for the earliest allowed time. Garmin requires at least **five minutes between background executions**, so later reminders may need to wait five minutes; debug does not bypass that platform limit. Scheduling uses Garmin's registered event time; callback validation uses `Background.getLastTemporalEventTime()`, because the one-shot registration may already be cleared when the event fires. No one-off stored deadline is needed. Reaching 2000 ml stops reminders for that day. The terminal prints `DrinkWater DEBUG: aviso en ... s` at startup when a reminder is scheduled. Closing the app allows the background wake dialog to be observed; reopening debug resets its initial consumption to 1800 ml.
+
+When the in-app reminder screen becomes visible, the console prints `DrinkWater INFO: pantalla de recordatorio visible`, including in screen-preview mode and when returning from a menu. This message is emitted on screen entry, not on every redraw, and is distinct from scheduling a reminder or requesting Garmin's wake dialog.
 
 To run the regression tests explicitly, leave the simulator open and execute:
 
@@ -263,7 +293,7 @@ The simulator is useful for UI, settings, and scheduling checks, but does not es
 ### Installing on the watch
 
 1. Confirm that the watch is a **Forerunner 645 (non-Music)** and update its firmware if necessary. Other devices need their own manifest target and compatible build.
-2. Leave `Config.DEBUG` disabled and run `make build`. Use the resulting `bin/drink-water.prg`, not the test program or the `.iq` package.
+2. Keep the defaults in [source/App/DebugConfig.mc](source/App/DebugConfig.mc) disabled and run `make build`. Use the resulting `bin/drink-water.prg`, not the debug/test program or the `.iq` package.
 3. Connect the watch to your computer with a **USB data cable**. Wait for its storage to appear in Finder; if it does not, check the cable and the watch's USB mode.
 4. Open the watch's **GARMIN/APPS** folder and copy `bin/drink-water.prg` into it.
 5. Safely eject the watch, disconnect the cable, and wait for it to finish processing the app.

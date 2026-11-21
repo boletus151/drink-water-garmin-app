@@ -57,7 +57,7 @@ class WaterConfig {
 
 (:background)
 module Config {
-    const DEBUG = false;
+    const DEBUG_GOAL_ML = 2000;
     const MIN_INTERVAL = 15;
     const MAX_INTERVAL = 60;
     const MIN_SERVING = 100;
@@ -72,6 +72,10 @@ module Config {
         return readAt(Time.now());
     }
 
+    function settingValue(key as String) as Properties.ValueType {
+        return DebugConfig.DEBUG && key.equals("goalMl") ? DEBUG_GOAL_ML : Properties.getValue(key);
+    }
+
     function readAt(now as Time.Moment) as WaterConfig {
         var result = new WaterConfig();
         var version = Properties.getValue("schemaVersion");
@@ -82,7 +86,7 @@ module Config {
         var keys = ["goalMl", "intervalMinutes", "startTime", "endTime", "servingMl"];
         var values = [] as Array<Number>;
         for (var i = 0; i < keys.size(); i += 1) {
-            var value = Properties.getValue(keys[i]);
+            var value = settingValue(keys[i]);
             if (!(value instanceof Number)) {
                 result.error = text(Rez.Strings.InvalidSettings);
                 return result;

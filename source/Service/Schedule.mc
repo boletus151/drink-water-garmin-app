@@ -1,5 +1,4 @@
 import Toybox.Background;
-import Toybox.Application.Storage;
 import Toybox.Lang;
 import Toybox.System;
 import Toybox.Time;
@@ -18,12 +17,13 @@ module Schedule {
         return earliest;
     }
 
-    function debugEventTime(config as WaterConfig, opened as Time.Moment,
+    function debugEventTime(config as WaterConfig, earliest as Time.Moment,
                             lastEvent as Time.Moment?, debug as Boolean) as Time.Moment? {
-        if (!debug || !config.enabled || config.error != null || config.goalReached(opened)) {
+        if (!debug || !config.enabled || config.error != null || config.goalReached(earliest)) {
             return null;
         }
-        return earliestAllowedTime(opened.add(new Time.Duration(60)), lastEvent);
+        var nextMinute = new Time.Moment(((earliest.value() + 59) / 60).toNumber() * 60);
+        return earliestAllowedTime(nextMinute, lastEvent);
     }
 
     function debugDueKey(config as WaterConfig, now as Time.Moment,
@@ -36,11 +36,14 @@ module Schedule {
     }
 
     function pendingDebug(config as WaterConfig, earliest as Time.Moment) as Time.Moment? {
-        if (!Config.DEBUG || !config.enabled || config.error != null || config.goalReached(earliest)) {
+        if (!DebugConfig.DEBUG || !config.enabled || config.error != null || config.goalReached(earliest)) {
             return null;
         }
-        var target = Storage.getValue("debugReminderTime");
-        return target instanceof Number && target >= earliest.value() ? new Time.Moment(target) : null;
+        var target = Background.getTemporalEventRegisteredTime();
+        if (target instanceof Time.Moment && target.value() >= earliest.value()) {
+            return target;
+        }
+        return debugEventTime(config, earliest, Background.getLastTemporalEventTime(), true);
     }
 
     // Gregorian numbers Sunday as 1; settings run from Monday to Sunday.
@@ -163,9 +166,10 @@ module Schedule {
         if (config.error != null) {
             System.println("DrinkWater: " + config.error);
         }
-        var nextTime = pendingDebug(config, earliest);
+        var lastEvent = Background.getLastTemporalEventTime();
+        var nextTime = debugEventTime(config, earliest, lastEvent, DebugConfig.DEBUG);
         if (nextTime == null) {
-            nextTime = eventTime(config, earliest, Background.getLastTemporalEventTime());
+            nextTime = eventTime(config, earliest, lastEvent);
         }
         if (nextTime == null) {
             Background.deleteTemporalEvent();

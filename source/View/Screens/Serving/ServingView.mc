@@ -11,7 +11,7 @@ class ServingView extends LayoutView {
     }
 
     function onLayout(dc as Graphics.Dc) as Void {
-        setLayout(Rez.Layouts.ServingLayout(dc));
+        setEditorLayout(Rez.Layouts.ServingLayout(dc), dc, [["value"], ["range"]]);
     }
 
     function onUpdate(dc as Graphics.Dc) as Void {

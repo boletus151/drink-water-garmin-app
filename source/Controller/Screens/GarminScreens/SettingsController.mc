@@ -1,5 +1,5 @@
-import Toybox.Application.Properties;
 import Toybox.Lang;
+import Toybox.System;
 import Toybox.WatchUi;
 
 class SettingsController extends WatchUi.Menu2InputDelegate {
@@ -17,7 +17,7 @@ class SettingsController extends WatchUi.Menu2InputDelegate {
         }
         if (key.equals("recordIntake")) {
             if (waterApp().recordIntake()) {
-                WatchUi.popView(WatchUi.SLIDE_DOWN);
+                _menu.flashIntake();
             }
             return;
         }
@@ -26,7 +26,11 @@ class SettingsController extends WatchUi.Menu2InputDelegate {
             WatchUi.pushView(menu, new DaysController(menu), WatchUi.SLIDE_UP);
             return;
         }
-        var value = Properties.getValue(key);
+        if (DebugConfig.DEBUG && key.equals("goalMl")) {
+            System.println("DrinkWater DEBUG: el objetivo es fijo en 2000 ml");
+            return;
+        }
+        var value = Config.settingValue(key);
         if (value instanceof Boolean) {
             waterApp().save(key, !value);
             _menu.refresh();

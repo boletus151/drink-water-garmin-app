@@ -1,4 +1,3 @@
-import Toybox.Application.Properties;
 import Toybox.Graphics;
 import Toybox.Lang;
 import Toybox.WatchUi;
@@ -20,7 +19,7 @@ class SettingsList {
     }
 
     function valueText(key as String) as String {
-        var value = Properties.getValue(key);
+        var value = Config.settingValue(key);
         if (key.equals("startTime") || key.equals("endTime")) {
             if (!(value instanceof Number)) {
                 throw new Lang.UnexpectedTypeException("Time settings must be Number", null, null);

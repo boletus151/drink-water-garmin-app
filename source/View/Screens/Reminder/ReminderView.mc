@@ -1,4 +1,5 @@
 import Toybox.Graphics;
+import Toybox.System;
 
 class ReminderView extends RootView {
     function initialize() {
@@ -9,13 +10,18 @@ class ReminderView extends RootView {
         WaterFrame.setLayout(self, Rez.Layouts.ReminderLayout(dc), dc);
     }
 
+    function onShow() as Void {
+        RootView.onShow();
+        if (waterApp().visibleRoot == self) {
+            System.println("DrinkWater INFO: pantalla de recordatorio visible");
+        }
+    }
+
     function onUpdate(dc as Graphics.Dc) as Void {
         if (waterApp().refreshRootView()) {
             return;
         }
         var config = Config.read();
-        label("status").setText(text(config.enabled ? Rez.Strings.Enabled : Rez.Strings.Disabled));
-        label("status").setColor(config.enabled ? Theme.TEXT : Theme.MUTED);
         var valid = WaterFrame.update(self, config, waterApp().scheduleError);
         show("content", valid);
         show("remaining", valid);

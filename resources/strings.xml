@@ -1,11 +1,11 @@
 <resources>
-    <string id="AppName">Bebe agua</string>
+    <string id="AppName">Bebe Agua App</string>
     <string id="Reminder" scope="background">Recuerda beber agua</string>
     <string id="Settings">Ajustes</string>
     <string id="Enabled">Activados</string>
     <string id="Disabled">Desactivados</string>
     <string id="Goal">Objetivo diario (ml)</string>
-    <string id="GoalReached">Objetivo cumplido</string>
+    <string id="GoalReached">¡Enhorabuena! Objetivo cumplido</string>
     <string id="GoalLabel">Objetivo</string>
     <string id="ConsumedLabel">Llevas</string>
     <string id="RemainingLabel">Quedan</string>

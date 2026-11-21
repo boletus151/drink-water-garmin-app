@@ -9,7 +9,8 @@ class TimeView extends LayoutView {
     }
 
     function onLayout(dc as Graphics.Dc) as Void {
-        setLayout(Rez.Layouts.TimeLayout(dc));
+        setEditorLayout(Rez.Layouts.TimeLayout(dc), dc,
+            [["digit0", "digit1", "separator", "digit2", "digit3"], ["range"]]);
     }
 
     function onUpdate(dc as Graphics.Dc) as Void {

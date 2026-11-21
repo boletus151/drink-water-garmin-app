@@ -9,7 +9,7 @@ class IntervalView extends LayoutView {
     }
 
     function onLayout(dc as Graphics.Dc) as Void {
-        setLayout(Rez.Layouts.IntervalLayout(dc));
+        setEditorLayout(Rez.Layouts.IntervalLayout(dc), dc, [["digit0", "digit1"], ["range"]]);
     }
 
     function onUpdate(dc as Graphics.Dc) as Void {

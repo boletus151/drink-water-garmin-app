@@ -4,8 +4,23 @@ import Toybox.WatchUi;
 
 class WaterFrame {
     static function setLayout(view as LayoutView, items as Array<WatchUi.Drawable>, dc as Graphics.Dc) as Void {
+        var content = [] as Array<Array<String>>;
+        for (var i = 0; i < items.size(); i += 1) {
+            var item = items[i];
+            if (item instanceof StackText) {
+                var id = item.identifier;
+                if (!(id instanceof String)) {
+                    throw new Lang.UnexpectedTypeException("Stack text requires a String identifier", null, null);
+                }
+                content.add([id]);
+            }
+        }
+        content.add(["errorTitle"]);
+        content.add(["errorDetail"]);
         items.addAll(Rez.Layouts.WaterFrameLayout(dc));
         view.setLayout(items);
+        view.setVerticalLayout([["title"]], content, [["toggleHint"], ["menuHint"]],
+            (dc.getHeight() / 26).toNumber());
     }
 
     static function update(view as LayoutView, config as WaterConfig, scheduleError as Boolean) as Boolean {
