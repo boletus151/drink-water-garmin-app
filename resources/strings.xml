@@ -4,7 +4,7 @@
     <string id="Settings">Ajustes</string>
     <string id="Enabled">Activados</string>
     <string id="Disabled">Desactivados</string>
-    <string id="Goal">Objetivo diario</string>
+    <string id="Goal">Objetivo diario (ml)</string>
     <string id="Interval">Intervalo (min)</string>
     <string id="StartHour">Hora inicial</string>
     <string id="EndHour">Hora final</string>
